@@ -156,14 +156,29 @@ def get_playlist_ids(path):
     return ids
 
 # Get all items from a list of playlists
-def retrieve_items_from_playlists(youtube, path):
+def retrieve_items_from_playlists(youtube, path, n_items=None):
     playlist_ids = []
 
     playlist_ids = get_playlist_ids(path)
         
-    for p_id in playlist_ids:
-        print(f"\nGetting entire playlist with ID {p_id}\n")
-        get_entire_playlist(youtube, p_id)
+    for i, p_id in enumerate(playlist_ids):
+        if not n_items:
+            print(f"\nGetting entire playlist with ID {p_id}\n")
+            get_entire_playlist(youtube, p_id)
+        elif type(n_items) is int:
+            print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
+            get_n_playlist_items(youtube, p_id, n_items)
+        elif type(n_items) is list:
+            if len(n_items) != len(playlist_ids):
+                n = len(n_items)
+                p = len(playlist_ids)
+                print(
+                    f"Error: n_list size ({n}) != number of " +
+                    f"playlists ({p}). Returning..."
+                )
+                return
+            print(f"\nGetting {n_items[i]} items from playlist with ID {p_id}\n")
+            get_n_playlist_items(youtube, p_id, n_items[i])
 
     return
 
@@ -172,13 +187,20 @@ if __name__ == '__main__':
     # Argparse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-id",
+        "-i", "--id",
         help="Retrieve a single playlist by ID"
     )
     parser.add_argument(
         "-n", "--number", 
         type=int,
         help="Number of playlist items to retrieve"
+    )
+    parser.add_argument(
+        "--n_list",
+        nargs="+",
+        type=int,
+        help="List of number of playlist items to retrieve (size of list" +
+             "must equal total number of playlists)"
     )
     parser.add_argument(
         "--file",
@@ -203,6 +225,7 @@ if __name__ == '__main__':
         # Get args
         args = parser.parse_args()
 
+        # Single playlist
         if args.id:
             playlist_id = args.id
             if not args.number:
@@ -211,8 +234,17 @@ if __name__ == '__main__':
                 n_items = args.number
                 print(f"Getting {n_items} items from playlist {playlist_id}")
                 get_n_playlist_items(youtube, playlist_id, n_items=n_items)
+        # Playlist file
         elif args.file:
-            retrieve_items_from_playlists(youtube, args.file) 
+            if args.number:
+                n_items = args.number
+                retrieve_items_from_playlists(youtube, args.file, n_items)
+            elif args.n_list:
+                n_list = args.n_list
+                retrieve_items_from_playlists(youtube, args.file, n_list)
+            else:
+                retrieve_items_from_playlists(youtube, args.file) 
+
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
