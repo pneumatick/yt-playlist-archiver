@@ -142,7 +142,7 @@ def get_n_playlist_items(youtube, playlist_id, n_items):
     return
 
 # Return a list of playlist IDs from a file
-def get_playlist_ids(path="playlists.txt"):
+def get_playlist_ids(path):
     ids = []
 
     try:
@@ -156,13 +156,10 @@ def get_playlist_ids(path="playlists.txt"):
     return ids
 
 # Get all items from a list of playlists
-def retrieve_items_from_playlists(youtube, path=""):
+def retrieve_items_from_playlists(youtube, path):
     playlist_ids = []
 
-    if not path:
-        playlist_ids = get_playlist_ids()
-    else:
-        playlist_ids = get_playlist_ids(path)
+    playlist_ids = get_playlist_ids(path)
         
     for p_id in playlist_ids:
         print(f"\nGetting entire playlist with ID {p_id}\n")
@@ -180,8 +177,15 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-n", "--number", 
-        help="Number of playlist items to retrieve",
-        type=int
+        type=int,
+        help="Number of playlist items to retrieve"
+    )
+    parser.add_argument(
+        "--file",
+        nargs="?",
+        default=None,
+        const="playlists.txt",
+        help="Use playlist ID file (default 'playlists.txt')"
     )
 
     # OAuth 2.0
@@ -207,7 +211,8 @@ if __name__ == '__main__':
                 n_items = args.number
                 print(f"Getting {n_items} items from playlist {playlist_id}")
                 get_n_playlist_items(youtube, playlist_id, n_items=n_items)
-        #retrieve_items_from_playlists(youtube) 
+        elif args.file:
+            retrieve_items_from_playlists(youtube, args.file) 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
