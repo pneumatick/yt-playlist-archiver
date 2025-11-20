@@ -99,6 +99,48 @@ def get_entire_playlist(youtube, playlist_id):
 
     return
 
+# Get a specified number of playlist items
+def get_n_playlist_items(youtube, playlist_id, n_items):
+    if n_items < 0:
+        return
+    elif n_items <= 50:
+        response = get_playlist_page(youtube, playlist_id, n_items=n_items)
+        print_playlist_response(response)
+        return
+
+    # Getting more than 50 items
+    end_reached = False
+
+    response = get_playlist_page(youtube, playlist_id)
+    n_items -= 50
+    while not end_reached:
+        if not response:
+            print("No response received...")
+            return
+
+        # Print playlist items for now
+        print_playlist_response(response)
+        # Get the next page if possible, otherwise end loop
+        if "nextPageToken" in response and n_items > 0:
+            nextPageToken = response["nextPageToken"]
+            # Get max items (50) at a time while n > 50
+            response = get_playlist_page(
+                youtube, 
+                playlist_id,
+                n_items=50 if n_items >= 50 else n_items,
+                next_page=nextPageToken
+            )
+            if n_items >= 50:
+                n_items -= 50
+            else:
+                n_items = 0
+                continue
+        else:
+            end_reached = True
+            continue
+
+    return
+
 # Return a list of playlist IDs from a file
 def get_playlist_ids(path="playlists.txt"):
     ids = []
@@ -130,8 +172,17 @@ def retrieve_items_from_playlists(youtube, path=""):
 
 if __name__ == '__main__':
 
+    # Argparse arguments
     parser = argparse.ArgumentParser()
-    # Add argparse arguments here
+    parser.add_argument(
+        "-id",
+        help="Retrieve a single playlist by ID"
+    )
+    parser.add_argument(
+        "-n", "--number", 
+        help="Number of playlist items to retrieve",
+        type=int
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -142,10 +193,21 @@ if __name__ == '__main__':
         quit()
 
     try:
+        # Set up YouTube API
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
-        # TESTS: Replace with argparse later...
-        #get_entire_playlist(youtube, ENTER ID HERE)
-        retrieve_items_from_playlists(youtube) 
+
+        # Get args
+        args = parser.parse_args()
+
+        if args.id:
+            playlist_id = args.id
+            if not args.number:
+                get_entire_playlist(youtube, playlist_id)
+            else:
+                n_items = args.number
+                print(f"Getting {n_items} items from playlist {playlist_id}")
+                get_n_playlist_items(youtube, playlist_id, n_items=n_items)
+        #retrieve_items_from_playlists(youtube) 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
