@@ -27,6 +27,9 @@ SCOPES = ['https://www.googleapis.com/auth/youtube']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
+# Global YouTube API variables
+youtube = None
+
 # Global SQLite3 variables
 conn = None
 cursor = None
@@ -48,7 +51,7 @@ def get_api_key(path="secrets.txt"):
         return None
 
 # Retrieve n items (50 max) from a playlist
-def get_playlist_page(youtube, playlist_id, n_items = 50, next_page = None):
+def get_playlist_page(playlist_id, n_items = 50, next_page = None):
     if n_items < 1 or n_items > 50:
         print(f"Cannot retrieve {n_items} list items (range 1 - 50)...")
         return None
@@ -79,10 +82,10 @@ def print_playlist_response(response):
         print(f"Video Title: {video_title}, Video ID: {video_id}")
 
 # Get all playlist items
-def get_entire_playlist(youtube, playlist_id):
+def get_entire_playlist(playlist_id):
     end_reached = False
 
-    response = get_playlist_page(youtube, playlist_id)
+    response = get_playlist_page(playlist_id)
     while not end_reached:
         if not response:
             print("No response received...")
@@ -105,18 +108,18 @@ def get_entire_playlist(youtube, playlist_id):
     return
 
 # Get a specified number of playlist items
-def get_n_playlist_items(youtube, playlist_id, n_items):
+def get_n_playlist_items(playlist_id, n_items):
     if n_items < 0:
         return
     elif n_items <= 50:
-        response = get_playlist_page(youtube, playlist_id, n_items=n_items)
+        response = get_playlist_page(playlist_id, n_items=n_items)
         print_playlist_response(response)
         return
 
     # Getting more than 50 items
     end_reached = False
 
-    response = get_playlist_page(youtube, playlist_id)
+    response = get_playlist_page(playlist_id)
     n_items -= 50
     while not end_reached:
         if not response:
@@ -161,7 +164,7 @@ def get_playlist_ids(path):
     return ids
 
 # Get all items from a list of playlists
-def retrieve_items_from_playlists(youtube, path, n_items=None):
+def retrieve_items_from_playlists(path, n_items=None):
     playlist_ids = []
 
     playlist_ids = get_playlist_ids(path)
@@ -169,10 +172,10 @@ def retrieve_items_from_playlists(youtube, path, n_items=None):
     for i, p_id in enumerate(playlist_ids):
         if not n_items:
             print(f"\nGetting entire playlist with ID {p_id}\n")
-            get_entire_playlist(youtube, p_id)
+            get_entire_playlist(p_id)
         elif type(n_items) is int:
             print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
-            get_n_playlist_items(youtube, p_id, n_items)
+            get_n_playlist_items(p_id, n_items)
         elif type(n_items) is list:
             if len(n_items) != len(playlist_ids):
                 n = len(n_items)
@@ -183,7 +186,7 @@ def retrieve_items_from_playlists(youtube, path, n_items=None):
                 )
                 return
             print(f"\nGetting {n_items[i]} items from playlist with ID {p_id}\n")
-            get_n_playlist_items(youtube, p_id, n_items[i])
+            get_n_playlist_items(p_id, n_items[i])
 
     return
 
@@ -273,21 +276,21 @@ if __name__ == '__main__':
         if args.id:
             playlist_id = args.id
             if not args.number:
-                get_entire_playlist(youtube, playlist_id)
+                get_entire_playlist(playlist_id)
             else:
                 n_items = args.number
                 print(f"Getting {n_items} items from playlist {playlist_id}")
-                get_n_playlist_items(youtube, playlist_id, n_items=n_items)
+                get_n_playlist_items(playlist_id, n_items=n_items)
         # Playlist file
         elif args.file:
             if args.number:
                 n_items = args.number
-                retrieve_items_from_playlists(youtube, args.file, n_items)
+                retrieve_items_from_playlists(args.file, n_items)
             elif args.n_list:
                 n_list = args.n_list
-                retrieve_items_from_playlists(youtube, args.file, n_list)
+                retrieve_items_from_playlists(args.file, n_list)
             else:
-                retrieve_items_from_playlists(youtube, args.file) 
+                retrieve_items_from_playlists(args.file) 
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
