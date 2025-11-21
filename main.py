@@ -1,5 +1,6 @@
 import argparse
 import os
+import sqlite3
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -25,6 +26,10 @@ CLIENT_SECRETS_FILE = 'client_secret.json'
 SCOPES = ['https://www.googleapis.com/auth/youtube']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
+
+# Global SQLite3 variables
+conn = None
+cursor = None
 
 # Authorize the request and store authorization credentials. (OAuth 2.0)
 def get_authenticated_service():
@@ -182,6 +187,40 @@ def retrieve_items_from_playlists(youtube, path, n_items=None):
 
     return
 
+# Instantiate or load the database
+def instantiate_db():
+    conn = sqlite3.connect('playlists.db')
+    cursor = conn.cursor()
+
+    # Create required tables if necessary
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS playlist_data (
+            p_id VARCHAR(64) PRIMARY KEY,
+            created INTEGER,
+            last_update INTEGER
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS playlist_items (
+            p_id VARCHAR(64),
+            vid_id VARCHAR(16),
+            website VARCHAR(64),
+            position INTEGER,
+            added INTEGER,
+            PRIMARY KEY (p_id, vid_id, website)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS videos (
+            vid_id VARCHAR(16),
+            website VARCHAR(64),
+            status VARCHAR(16),
+            PRIMARY KEY (vid_id, website)
+        )
+    ''')
+
+    conn.commit()
+
 if __name__ == '__main__':
 
     # Argparse arguments
@@ -225,6 +264,11 @@ if __name__ == '__main__':
         # Get args
         args = parser.parse_args()
 
+        # Load or create database
+        instantiate_db()
+
+        # Execute functions according to args
+
         # Single playlist
         if args.id:
             playlist_id = args.id
@@ -248,6 +292,6 @@ if __name__ == '__main__':
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
-        print(f"An error has occurred: {e.content}")
+        print(f"An error has occurred: {e}")
 
 

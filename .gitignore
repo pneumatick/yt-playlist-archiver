@@ -1,4 +1,4 @@
-secrets.txt
-playlists.txt
-TODO.md
+*.txt
+*.db
+*.md
 *.swp
