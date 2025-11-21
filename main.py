@@ -1,6 +1,7 @@
 import argparse
 import os
 import sqlite3
+import datetime
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -190,8 +191,34 @@ def retrieve_items_from_playlists(path, n_items=None):
 
     return
 
+# Check if the playlist has received changes since the last archival event
+def check_playlist_for_changes(playlist_id) -> bool:
+    # Get the playlist's etag
+    try:
+        request = youtube.playlistItems().list(
+            part="contentDetails",
+            playlistId=playlist_id
+        )
+        response = request.execute()
+        etag = response["etag"]
+
+        # Compare received etag to stored
+        cursor.execute(
+            '''SELECT etag FROM playlist_data WHERE p_id = ?''',
+            (playlist_id,)
+        )
+        result = cursor.fetchall()
+        cached_etag = result[0][0]
+        if etag == cached_etag:
+            print(f"No changes: Etag {etag} same as cached etag {cached_etag}")
+        else:
+            print(f"Change detected: Etag {etag} differs from cached etag {cached_etag}")
+    except Exception as e:
+        print(f"Error when checking playlist for changes: {e}")
+
 # Instantiate or load the database
 def instantiate_db():
+    global conn, cursor
     conn = sqlite3.connect('playlists.db')
     cursor = conn.cursor()
 
@@ -200,7 +227,8 @@ def instantiate_db():
         CREATE TABLE IF NOT EXISTS playlist_data (
             p_id VARCHAR(64) PRIMARY KEY,
             created INTEGER,
-            last_update INTEGER
+            last_update INTEGER,
+            etag VARCHAR(32)
         )
     ''')
     cursor.execute('''
@@ -251,6 +279,10 @@ if __name__ == '__main__':
         const="playlists.txt",
         help="Use playlist ID file (default 'playlists.txt')"
     )
+    parser.add_argument(
+        "-c", "--check",
+        help="Check playlist for changes by ID"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -261,7 +293,7 @@ if __name__ == '__main__':
         quit()
 
     try:
-        # Set up YouTube API
+        # Set up YouTube API (global variable)
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
 
         # Get args
@@ -291,10 +323,15 @@ if __name__ == '__main__':
                 retrieve_items_from_playlists(args.file, n_list)
             else:
                 retrieve_items_from_playlists(args.file) 
+        # Checking playlist for changes
+        elif args.check:
+            check_playlist_for_changes(args.check)
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
         print(f"An error has occurred: {e}")
 
+    # Close database connection
+    conn.close()
 
