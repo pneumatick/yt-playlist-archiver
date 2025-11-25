@@ -226,17 +226,20 @@ def retrieve_items_from_playlists(path, n_items=None):
 
     return
 
+def get_etag(playlist_id) -> str:
+    request = youtube.playlistItems().list(
+        part="contentDetails",
+        playlistId=playlist_id,
+        maxResults=0
+    )
+    response = request.execute()
+    return response["etag"]
+
 # Check if the playlist has received changes since the last archival event
 def check_playlist_for_changes(playlist_id) -> (bool, str):
     try:
         # Get the playlist's etag
-        request = youtube.playlistItems().list(
-            part="contentDetails",
-            playlistId=playlist_id,
-            maxResults=0
-        )
-        response = request.execute()
-        etag = response["etag"]
+        etag = get_etag(playlist_id)
 
         # Compare received etag to stored
         cursor.execute(
@@ -256,23 +259,44 @@ def check_playlist_for_changes(playlist_id) -> (bool, str):
 
 # Archive an entire playlist
 def archive_playlist(playlist_id):
-    (changed, etag) = check_playlist_for_changes(playlist_id)
+    # Check if the playlist is new or not
+    cursor.execute('''
+        SELECT * FROM playlist_data WHERE p_id = ?
+    ''', (playlist_id,))
+    result = cursor.fetchall()
 
-    if changed and etag:
+    if result:
+        (changed, etag) = check_playlist_for_changes(playlist_id)
+
+        if changed and etag:
+            # Update existing playlist
+            get_entire_playlist(playlist_id, "archive")
+            now = datetime.datetime.now()
+            cursor.execute('''
+                UPDATE playlist_data 
+                SET last_update = ?, etag = ?
+                WHERE p_id = ?
+                ''',
+                ((int(now.timestamp()), etag, playlist_id))
+            )
+            conn.commit()
+            print("Playlist successfully updated")
+        else:
+            print("No changes since last update")
+    else:
+        # Archive new playlist
         get_entire_playlist(playlist_id, "archive")
         now = datetime.datetime.now()
-        # Update existing playlist
+        etag = get_etag(playlist_id)
         cursor.execute('''
-            UPDATE playlist_data 
-            SET last_update = ?, etag = ?
-            WHERE p_id = ?
+            INSERT INTO playlist_data 
+            (p_id, created, last_update, etag) 
+            VALUES (?, ?, ?, ?)
             ''',
-            ((int(now.timestamp()), etag, playlist_id))
+            (playlist_id, int(now.timestamp()), int(now.timestamp()), etag)
         )
         conn.commit()
-        print("Playlist successfully updated")
-    else:
-        print("No changes since last update")
+        print("Playlist successfully archived")
 
 # Instantiate or load the database
 def instantiate_db():
