@@ -2,6 +2,7 @@ import argparse
 import os
 import sqlite3
 import datetime
+import traceback
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -59,13 +60,13 @@ def get_playlist_page(playlist_id, n_items = 50, next_page = None):
 
     if not next_page:
         request = youtube.playlistItems().list(
-            part="snippet,contentDetails",
+            part="snippet,contentDetails,status",
             playlistId=playlist_id,
             maxResults=n_items
         )
     else:
         request = youtube.playlistItems().list(
-            part="snippet,contentDetails",
+            part="snippet,contentDetails,status",
             playlistId=playlist_id,
             maxResults=n_items,
             pageToken=next_page
@@ -80,10 +81,38 @@ def print_playlist_response(response):
     for item in response['items']:
         video_title = item['snippet']['title']
         video_id = item['contentDetails']['videoId']
-        print(f"Video Title: {video_title}, Video ID: {video_id}")
+        position = item['snippet']['position']
+        print(f"{position}: Video Title: {video_title}, Video ID: {video_id}")
+
+def archive_playlist_response(playlist_id, response):
+    for item in response['items']:
+        video_title = item['snippet']['title']
+        video_id = item['contentDetails']['videoId']
+        position = item['snippet']['position']
+        status = item['status']['privacyStatus']
+        print(f"{position}: Video Title: {video_title}, Video ID: {video_id}")
+        now = datetime.datetime.now() 
+        try:
+            cursor.execute(
+                '''
+                    INSERT INTO playlist_items
+                    (p_id, vid_id, position, added) 
+                    VALUES (?, ?, ?, ?) 
+                ''', 
+                (playlist_id, video_id, position, int(now.timestamp()))
+            )
+            cursor.execute(
+                '''
+                    INSERT INTO videos
+                    (vid_id, status) VALUES (?, ?)
+                ''',
+                (video_id, status)
+            )
+        except sqlite3.IntegrityError as e:
+            print("Video already archived. Skipping...")
 
 # Get all playlist items
-def get_entire_playlist(playlist_id):
+def get_entire_playlist(playlist_id, behavior):
     end_reached = False
 
     response = get_playlist_page(playlist_id)
@@ -92,13 +121,19 @@ def get_entire_playlist(playlist_id):
             print("No response received...")
             return
 
-        # Print playlist items for now
-        print_playlist_response(response)
+        # Handle the response
+        if behavior == "print":
+            print_playlist_response(response)
+        elif behavior == "archive":
+            archive_playlist_response(playlist_id, response)
+        else:
+            print(f"Unknown behavior specified: {behavior}")
+            return
+
         # Get the next page if possible, otherwise end loop
         if "nextPageToken" in response:
             nextPageToken = response["nextPageToken"]
             response = get_playlist_page(
-                youtube, 
                 playlist_id, 
                 next_page=nextPageToken
             )
@@ -192,12 +227,13 @@ def retrieve_items_from_playlists(path, n_items=None):
     return
 
 # Check if the playlist has received changes since the last archival event
-def check_playlist_for_changes(playlist_id) -> bool:
-    # Get the playlist's etag
+def check_playlist_for_changes(playlist_id) -> (bool, str):
     try:
+        # Get the playlist's etag
         request = youtube.playlistItems().list(
             part="contentDetails",
-            playlistId=playlist_id
+            playlistId=playlist_id,
+            maxResults=0
         )
         response = request.execute()
         etag = response["etag"]
@@ -208,17 +244,41 @@ def check_playlist_for_changes(playlist_id) -> bool:
             (playlist_id,)
         )
         result = cursor.fetchall()
-        cached_etag = result[0][0]
-        if etag == cached_etag:
-            print(f"No changes: Etag {etag} same as cached etag {cached_etag}")
+        if not result:
+            print(f"Playlist {playlist_id} not archived.")
+            return (False, "")
+        elif etag == result[0][0]:
+            return (False, "")
         else:
-            print(f"Change detected: Etag {etag} differs from cached etag {cached_etag}")
+            etag = result[0][0]
+            return (True, etag)
     except Exception as e:
         print(f"Error when checking playlist for changes: {e}")
 
+# Archive an entire playlist
+def archive_playlist(playlist_id):
+    (changed, etag) = check_playlist_for_changes(playlist_id)
+
+    if changed and etag:
+        get_entire_playlist(playlist_id, "archive")
+        now = datetime.datetime.now()
+        # Update existing playlist
+        cursor.execute('''
+            UPDATE playlist_data 
+            SET last_update = ?, etag = ?
+            WHERE p_id = ?
+            ''',
+            ((int(now.timestamp()), etag, playlist_id))
+        )
+        conn.commit()
+        print("Playlist successfully updated")
+    else:
+        print("No changes since last update")
+
 # Instantiate or load the database
 def instantiate_db():
-    global conn, cursor
+    global conn
+    global cursor
     conn = sqlite3.connect('playlists.db')
     cursor = conn.cursor()
 
@@ -235,18 +295,15 @@ def instantiate_db():
         CREATE TABLE IF NOT EXISTS playlist_items (
             p_id VARCHAR(64),
             vid_id VARCHAR(16),
-            website VARCHAR(64),
             position INTEGER,
             added INTEGER,
-            PRIMARY KEY (p_id, vid_id, website)
+            PRIMARY KEY (p_id, vid_id)
         )
     ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS videos (
-            vid_id VARCHAR(16),
-            website VARCHAR(64),
-            status VARCHAR(16),
-            PRIMARY KEY (vid_id, website)
+            vid_id VARCHAR(16) PRIMARY KEY,
+            status VARCHAR(16)
         )
     ''')
 
@@ -283,6 +340,10 @@ if __name__ == '__main__':
         "-c", "--check",
         help="Check playlist for changes by ID"
     )
+    parser.add_argument(
+        "-a", "--archive",
+        help="Archive an entire playlist by ID"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -308,7 +369,7 @@ if __name__ == '__main__':
         if args.id:
             playlist_id = args.id
             if not args.number:
-                get_entire_playlist(playlist_id)
+                get_entire_playlist(playlist_id, "print")
             else:
                 n_items = args.number
                 print(f"Getting {n_items} items from playlist {playlist_id}")
@@ -326,12 +387,15 @@ if __name__ == '__main__':
         # Checking playlist for changes
         elif args.check:
             check_playlist_for_changes(args.check)
-
+        # Archive an entire playlist by id
+        elif args.archive:
+            archive_playlist(args.archive)
+            
+        # Close database connection
+        conn.close()
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
         print(f"An error has occurred: {e}")
-
-    # Close database connection
-    conn.close()
+        traceback.print_exc()
 
