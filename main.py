@@ -250,7 +250,6 @@ def check_playlist_for_changes(playlist_id) -> (bool, str):
         elif etag == result[0][0]:
             return (False, "")
         else:
-            etag = result[0][0]
             return (True, etag)
     except Exception as e:
         print(f"Error when checking playlist for changes: {e}")
