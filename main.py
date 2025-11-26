@@ -314,6 +314,23 @@ def print_all_playlists():
                 f"Last Updated: {last_update}\nEtag: {etag}\n"
         )
 
+def print_videos_from_playlist(playlist_id):
+    cursor.execute(
+        '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position ASC''', 
+        (playlist_id,)
+    )
+    result = cursor.fetchall()
+
+    for video in result:
+        vid_id = video[1]
+        position = video[2] + 1
+        added = datetime.datetime.fromtimestamp(video[3])
+
+        print(
+            f"\n{position}:\nURL: https://www.youtube.com/watch?v={vid_id}" +
+            f"\nAdded: {added}"
+        )
+
 # Instantiate or load the database
 def instantiate_db():
     global conn
@@ -441,6 +458,9 @@ if __name__ == '__main__':
         # List all archived playlists
         elif args.list:
             print_all_playlists()
+        # Print videos from a playlist
+        elif args.open:
+            print_videos_from_playlist(args.open)
             
         # Close database connection
         conn.close()
