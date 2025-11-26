@@ -266,6 +266,7 @@ def archive_playlist(playlist_id):
     result = cursor.fetchall()
 
     if result:
+        # Check if the playlist has changed since the last update
         (changed, etag) = check_playlist_for_changes(playlist_id)
 
         if changed and etag:
@@ -297,6 +298,21 @@ def archive_playlist(playlist_id):
         )
         conn.commit()
         print("Playlist successfully archived")
+
+def print_all_playlists():
+    cursor.execute('''SELECT * FROM playlist_data''')
+    result = cursor.fetchall()
+
+    for playlist in result:
+        p_id = playlist[0]
+        created = datetime.datetime.fromtimestamp(playlist[1])
+        last_update = datetime.datetime.fromtimestamp(playlist[2])
+        etag = playlist[3]
+
+        print(
+                f"\nPlaylist ID: {p_id}\nCreated: {created}\n" +
+                f"Last Updated: {last_update}\nEtag: {etag}\n"
+        )
 
 # Instantiate or load the database
 def instantiate_db():
@@ -367,6 +383,15 @@ if __name__ == '__main__':
         "-a", "--archive",
         help="Archive an entire playlist by ID"
     )
+    parser.add_argument(
+        "-l", "--list",
+        action="store_true",
+        help="Display a list of all archived playlists"
+    )
+    parser.add_argument(
+        "-o", "--open",
+        help="Open a playlist"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -413,6 +438,9 @@ if __name__ == '__main__':
         # Archive an entire playlist by id
         elif args.archive:
             archive_playlist(args.archive)
+        # List all archived playlists
+        elif args.list:
+            print_all_playlists()
             
         # Close database connection
         conn.close()
