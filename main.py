@@ -339,20 +339,23 @@ def print_videos_from_playlist(playlist_id):
 
     for video in result:
         vid_id = video[1]
-        # Get video title
+
+        # Get video-specific info
         cursor.execute(
            '''SELECT * FROM videos WHERE vid_id = ?''',
            (vid_id,)
         )
         vid_res = cursor.fetchall()
         title = vid_res[0][1]
+        status = vid_res[0][2]
+
         position = video[2] + 1
         added = datetime.datetime.fromtimestamp(video[3])
 
         print(
             f"\n{position}: {title}\n" +
             f"URL: https://www.youtube.com/watch?v={vid_id}" +
-            f"\nAdded: {added}"
+            f"\nAdded: {added}\nStatus: {status}"
         )
 
 # Instantiate or load the database
