@@ -141,7 +141,7 @@ def get_entire_playlist(playlist_id, behavior):
             end_reached = True
             continue
 
-    return response["items"][0]["snippet"]["title"] # Return playlist title
+    return
 
 # Get a specified number of playlist items
 def get_n_playlist_items(playlist_id, n_items):
@@ -257,6 +257,16 @@ def check_playlist_for_changes(playlist_id) -> (bool, str):
     except Exception as e:
         print(f"Error when checking playlist for changes: {e}")
 
+# Get relevant playlist information
+def get_playlist_info(playlist_id):
+    request = youtube.playlists().list(
+        part='snippet',
+        id=playlist_id
+    )
+    response = request.execute()
+    
+    return response["items"][0]["snippet"]["title"]
+
 # Archive an entire playlist
 def archive_playlist(playlist_id):
     # Check if the playlist is new or not
@@ -286,7 +296,8 @@ def archive_playlist(playlist_id):
             print("No changes since last update")
     else:
         # Archive new playlist
-        playlist_title = get_entire_playlist(playlist_id, "archive")
+        get_entire_playlist(playlist_id, "archive")
+        playlist_title = get_playlist_info(playlist_id)
         now = datetime.datetime.now()
         etag = get_etag(playlist_id)
         cursor.execute('''
@@ -308,12 +319,14 @@ def print_all_playlists():
 
     for playlist in result:
         p_id = playlist[0]
-        created = datetime.datetime.fromtimestamp(playlist[1])
-        last_update = datetime.datetime.fromtimestamp(playlist[2])
-        etag = playlist[3]
+        title = playlist[1]
+        created = datetime.datetime.fromtimestamp(playlist[2])
+        last_update = datetime.datetime.fromtimestamp(playlist[3])
+        etag = playlist[4]
 
         print(
-                f"\nPlaylist ID: {p_id}\nCreated: {created}\n" +
+                f"\n{title}:\n" +
+                f"Playlist ID: {p_id}\nCreated: {created}\n" +
                 f"Last Updated: {last_update}\nEtag: {etag}\n"
         )
 
