@@ -104,9 +104,9 @@ def archive_playlist_response(playlist_id, response):
             cursor.execute(
                 '''
                     INSERT INTO videos
-                    (vid_id, status) VALUES (?, ?)
+                    (vid_id, title, status) VALUES (?, ?, ?)
                 ''',
-                (video_id, status)
+                (video_id, video_title, status)
             )
         except sqlite3.IntegrityError as e:
             print("Video already archived. Skipping...")
@@ -141,7 +141,7 @@ def get_entire_playlist(playlist_id, behavior):
             end_reached = True
             continue
 
-    return
+    return response["items"][0]["snippet"]["title"] # Return playlist title
 
 # Get a specified number of playlist items
 def get_n_playlist_items(playlist_id, n_items):
@@ -286,15 +286,18 @@ def archive_playlist(playlist_id):
             print("No changes since last update")
     else:
         # Archive new playlist
-        get_entire_playlist(playlist_id, "archive")
+        playlist_title = get_entire_playlist(playlist_id, "archive")
         now = datetime.datetime.now()
         etag = get_etag(playlist_id)
         cursor.execute('''
             INSERT INTO playlist_data 
-            (p_id, created, last_update, etag) 
-            VALUES (?, ?, ?, ?)
+            (p_id, title, created, last_update, etag) 
+            VALUES (?, ?, ?, ?, ?)
             ''',
-            (playlist_id, int(now.timestamp()), int(now.timestamp()), etag)
+            (
+                playlist_id, playlist_title, int(now.timestamp()), 
+                int(now.timestamp()), etag
+            )
         )
         conn.commit()
         print("Playlist successfully archived")
@@ -323,11 +326,19 @@ def print_videos_from_playlist(playlist_id):
 
     for video in result:
         vid_id = video[1]
+        # Get video title
+        cursor.execute(
+           '''SELECT * FROM videos WHERE vid_id = ?''',
+           (vid_id,)
+        )
+        vid_res = cursor.fetchall()
+        title = vid_res[0][1]
         position = video[2] + 1
         added = datetime.datetime.fromtimestamp(video[3])
 
         print(
-            f"\n{position}:\nURL: https://www.youtube.com/watch?v={vid_id}" +
+            f"\n{position}: {title}\n" +
+            f"URL: https://www.youtube.com/watch?v={vid_id}" +
             f"\nAdded: {added}"
         )
 
@@ -342,6 +353,7 @@ def instantiate_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS playlist_data (
             p_id VARCHAR(64) PRIMARY KEY,
+            title VARCHAR(256),
             created INTEGER,
             last_update INTEGER,
             etag VARCHAR(32)
@@ -359,6 +371,7 @@ def instantiate_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS videos (
             vid_id VARCHAR(16) PRIMARY KEY,
+            title VARCHAR(256),
             status VARCHAR(16)
         )
     ''')
