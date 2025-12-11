@@ -382,7 +382,7 @@ def print_all_playlists():
 
 def print_videos_from_playlist(playlist_id):
     cursor.execute(
-        '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position ASC''', 
+        '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position DESC''', 
         (playlist_id,)
     )
     result = cursor.fetchall()
