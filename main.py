@@ -380,11 +380,19 @@ def print_all_playlists():
                 f"Last Updated: {last_update}\nEtag: {etag}\n"
         )
 
-def print_videos_from_playlist(playlist_id):
-    cursor.execute(
-        '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position DESC''', 
-        (playlist_id,)
-    )
+def print_videos_from_playlist(playlist_id, order = "DESC"):
+    if order == "DESC":
+        cursor.execute(
+            '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position DESC''', 
+            (playlist_id,)
+        )
+    elif order == "ASC":
+        cursor.execute(
+            '''SELECT * FROM playlist_items WHERE p_id = ? ORDER BY position ASC''', 
+            (playlist_id,)
+        )
+    else:
+        print(f"Unknown order {order}...")
     result = cursor.fetchall()
 
     for video in result:
@@ -488,6 +496,11 @@ if __name__ == '__main__':
         "-o", "--open",
         help="Open a playlist"
     )
+    parser.add_argument(
+        "--ascend",
+        action="store_true",
+        help="Print playlist in ascending order"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -539,7 +552,10 @@ if __name__ == '__main__':
             print_all_playlists()
         # Print videos from a playlist
         elif args.open:
-            print_videos_from_playlist(args.open)
+            if args.ascend:
+                print_videos_from_playlist(args.open, order="ASC")
+            else:
+                print_videos_from_playlist(args.open, order="DESC")
             
         # Close database connection
         conn.close()
