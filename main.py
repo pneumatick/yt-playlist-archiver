@@ -101,6 +101,9 @@ def archive_playlist_response(playlist_id, response):
                 ''', 
                 (playlist_id, video_id, position, int(now.timestamp()))
             )
+        except sqlite3.IntegrityError as e:
+            print("Video already in playlist. Skipping...")
+        try:
             cursor.execute(
                 '''
                     INSERT INTO videos
@@ -109,7 +112,7 @@ def archive_playlist_response(playlist_id, response):
                 (video_id, video_title, status)
             )
         except sqlite3.IntegrityError as e:
-            print("Video already archived. Skipping...")
+            print("Video has been stored previously. Skipping...")
 
 # Get all playlist items
 def get_entire_playlist(playlist_id, behavior):
@@ -281,7 +284,7 @@ def archive_playlist(playlist_id):
 
         if changed and etag:
             # Update existing playlist
-            get_entire_playlist(playlist_id, "archive")
+            peek_playlist_top(playlist_id)
             now = datetime.datetime.now()
             cursor.execute('''
                 UPDATE playlist_data 
@@ -312,6 +315,53 @@ def archive_playlist(playlist_id):
         )
         conn.commit()
         print("Playlist successfully archived")
+
+# Update playlist by peeking from the top
+def peek_playlist_top(playlist_id): 
+    new_videos = { "items": [] } 
+    more = True 
+ 
+    response = get_playlist_page(playlist_id) 
+ 
+    # Check if video is in playlist or not and handle accordingly 
+    while more: 
+        for item in response['items']: 
+            video_id = item['contentDetails']['videoId'] 
+             
+            cursor.execute( 
+                ''' 
+                    SELECT * FROM playlist_items  
+                    WHERE p_id = ? AND vid_id = ? 
+                ''', 
+                (playlist_id, video_id) 
+            ) 
+            result = cursor.fetchall() 
+            if result: 
+                print("Existing video encountered.")
+                more = False 
+                break 
+            else: 
+                print(f"New video found: {item['snippet']['title']}")
+                new_videos['items'].append(item) 
+ 
+        # Get the next page if necessary 
+        if more and "nextPageToken" in response: 
+            token = response["nextPageToken"] 
+            response = get_playlist_page(playlist_id, next_page = token) 
+ 
+     
+    # Add the new videos and increment positions of old videos 
+    if len(new_videos["items"]) > 0: 
+        cursor.execute(
+            '''
+                UPDATE playlist_items SET position = position + ?
+                WHERE p_id = ? AND position >= ? - 1
+            ''',
+            (len(new_videos["items"]), playlist_id, len(new_videos["items"]))
+        )
+        archive_playlist_response(playlist_id, new_videos) 
+ 
+    return
 
 def print_all_playlists():
     cursor.execute('''SELECT * FROM playlist_data''')
