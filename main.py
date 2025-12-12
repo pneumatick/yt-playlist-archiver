@@ -3,6 +3,7 @@ import os
 import sqlite3
 import datetime
 import traceback
+import difflib
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -416,6 +417,39 @@ def print_videos_from_playlist(playlist_id, order = "DESC"):
             f"\nAdded: {added}\nStatus: {status}"
         )
 
+# Search for a video in the specified playlist
+def search_in_playlist(playlist_id, query, n_results = 10):
+    # Fetch all videos from the specified playlist
+    cursor.execute(
+         '''SELECT videos.title, videos.vid_id FROM videos
+         LEFT JOIN playlist_items ON playlist_items.vid_id = videos.vid_id
+         WHERE playlist_items.p_id = ?''',
+         (playlist_id,)
+     )
+    result = cursor.fetchall()
+    title_list = [row[0] for row in result]
+    # Set for for possible future REPL to mimic YouTube scroll feature
+    # Example: n=100, show 10 results at a time, option to view next page, etc.
+    vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
+
+    # Search for the closest titles to the search query string
+    close_matches = difflib.get_close_matches(
+            query, 
+            title_list, 
+            n=n_results, 
+            cutoff=0.15     # Roughly the sweet spot for my purposes
+    )
+
+    # Print best matches
+    if not close_matches:
+        print("No close matches found...")
+    else:
+        for close_match in close_matches:
+            print(f"\n{close_match}: {vid_dict[close_match]}\n")
+
+    return
+    
+
 # Instantiate or load the database
 def instantiate_db():
     global conn
@@ -501,6 +535,12 @@ if __name__ == '__main__':
         action="store_true",
         help="Print playlist in ascending order"
     )
+    parser.add_argument(
+        "--search",
+        nargs=2,
+        help="Search for a video by title in the specified playlist " +
+             "(order: playlist ID, video title)"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -556,6 +596,11 @@ if __name__ == '__main__':
                 print_videos_from_playlist(args.open, order="ASC")
             else:
                 print_videos_from_playlist(args.open, order="DESC")
+        # Search for a video in a playlist
+        elif args.search:
+            playlist_id = args.search[0]
+            title = args.search[1]
+            search_in_playlist(playlist_id, title)
             
         # Close database connection
         conn.close()
