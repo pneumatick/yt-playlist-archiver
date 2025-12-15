@@ -4,6 +4,8 @@ import sqlite3
 import datetime
 import traceback
 import difflib
+import csv
+import pandas as pd
 
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -448,7 +450,26 @@ def search_in_playlist(playlist_id, query, n_results = 10):
             print(f"\n{close_match}: {vid_dict[close_match]}\n")
 
     return
+
+# Export a playlist as a set of CSV files (one for videos, other for metadata)
+def export_playlist(playlist_id):
+    META_COLS = ["p_id", "title", "created", "last_update", "etag"]
+
+    # Export the metadata
+    cursor.execute(
+        '''SELECT * FROM playlist_data WHERE p_id = ?''',
+        (playlist_id,)
+    )
+    metadata = cursor.fetchall()[0]
+    path = f"{metadata[1]}.csv.meta"
+    metadict = {}
+    for i, col in enumerate(metadata):
+        metadict[META_COLS[i]] = col
+    meta_df = pd.DataFrame([metadict])
+    meta_df.to_csv(path, index=False)
+
     
+    return
 
 # Instantiate or load the database
 def instantiate_db():
@@ -541,6 +562,10 @@ if __name__ == '__main__':
         help="Search for a video by title in the specified playlist " +
              "(order: playlist ID, video title)"
     )
+    parser.add_argument(
+        "--export",
+        help="Export a playlist as a set of CSV files"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -601,6 +626,8 @@ if __name__ == '__main__':
             playlist_id = args.search[0]
             title = args.search[1]
             search_in_playlist(playlist_id, title)
+        elif args.export:
+            export_playlist(args.export)
             
         # Close database connection
         conn.close()
