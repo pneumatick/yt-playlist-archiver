@@ -455,19 +455,44 @@ def search_in_playlist(playlist_id, query, n_results = 10):
 def export_playlist(playlist_id):
     META_COLS = ["p_id", "title", "created", "last_update", "etag"]
 
-    # Export the metadata
+    # Export the playlist's metadata
     cursor.execute(
         '''SELECT * FROM playlist_data WHERE p_id = ?''',
         (playlist_id,)
     )
     metadata = cursor.fetchall()[0]
-    path = f"{metadata[1]}.csv.meta"
+    path = f"{metadata[1]}.csv"
     metadict = {}
     for i, col in enumerate(metadata):
         metadict[META_COLS[i]] = col
     meta_df = pd.DataFrame([metadict])
-    meta_df.to_csv(path, index=False)
+    meta_df.to_csv(path + ".meta", index=False)
 
+    ### Exporting the playlist ###
+
+    # Get and format relevant column names (accomodates user-generated cols)
+    # NOTE: 'videos.vid_id' and 'playlist_items.p_id' omitted by list slice
+    cursor.execute('''SELECT name FROM pragma_table_info('playlist_items')''')
+    items_cols = ["playlist_items." + i[0] for i in cursor.fetchall()[1:]]
+    cursor.execute('''SELECT name FROM pragma_table_info('videos')''')
+    videos_cols = ["videos." + i[0] for i in cursor.fetchall()[1:]]
+    col_names = ', '.join(items_cols) + ', ' + ', '.join(videos_cols)
+
+    # Get the relevant playlist item and video data
+    query = (
+        "SELECT %s FROM playlist_items " +
+        "JOIN videos ON playlist_items.vid_id = videos.vid_id " +
+        "WHERE playlist_items.p_id = ? ORDER BY playlist_items.position ASC"
+    ) % col_names
+    cursor.execute(
+         query,
+         (playlist_id,)
+    )
+    result = cursor.fetchall()
+
+    # Export the data
+    playlist_df = pd.DataFrame(result, columns=(items_cols + videos_cols))
+    playlist_df.to_csv(path, index=False)
     
     return
 
