@@ -39,6 +39,10 @@ youtube = None
 conn = None
 cursor = None
 
+# Table columns
+PLAYLIST_ITEMS_COLS = ['p_id', 'vid_id', 'position', 'added']
+VIDEOS_COLS = ['vid_id', 'title', 'status']
+
 # Authorize the request and store authorization credentials. (OAuth 2.0)
 def get_authenticated_service():
   flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
@@ -480,8 +484,8 @@ def export_playlist(playlist_id):
 
     # Get the relevant playlist item and video data
     query = (
-        "SELECT %s FROM playlist_items " +
-        "JOIN videos ON playlist_items.vid_id = videos.vid_id " +
+        "SELECT %s FROM playlist_items "
+        "JOIN videos ON playlist_items.vid_id = videos.vid_id "
         "WHERE playlist_items.p_id = ? ORDER BY playlist_items.position ASC"
     ) % col_names
     cursor.execute(
@@ -494,6 +498,85 @@ def export_playlist(playlist_id):
     playlist_df = pd.DataFrame(result, columns=(items_cols + videos_cols))
     playlist_df.to_csv(path, index=False)
     
+    return
+
+# Import playlist data
+# NOTE: Does not currently handle playlists already stored in the database
+def import_playlist(file_name):
+    # Load playlist data and metadata from the relevant file
+    meta_df = pd.read_csv(file_name + ".meta")
+    playlist_df = pd.read_csv(file_name)
+
+    # Store playlist metadata
+    metadata = tuple(meta_df.values[0])
+    try:
+        cursor.execute('''
+            INSERT INTO playlist_data (p_id, title, created, last_update, etag)
+            VALUES (?, ?, ?, ?, ?)''',
+            metadata
+        )
+    except sqlite3.IntegrityError as e:
+        print("Playlist metadata already stored. Skipping...")
+
+    # Store the playlist data
+    playlist_id = metadata[0]
+    for row in playlist_df.itertuples():
+        items_data = (playlist_id,) + row[1:len(PLAYLIST_ITEMS_COLS)]
+        videos_data = (items_data[1],) + row[len(PLAYLIST_ITEMS_COLS):]
+
+        # Storing playlist item data
+        try:
+            cursor.execute('''
+                INSERT INTO playlist_items (p_id, vid_id, position, added)
+                VALUES (?, ?, ?, ?)''',
+                items_data
+            )
+        except sqlite3.IntegrityError as e:
+            print("Playlist item already exists. Skipping...")
+
+        # Storing video data
+        try:
+            cursor.execute('''
+                INSERT INTO videos (vid_id, title, status)
+                VALUES (?, ?, ?)''',
+                videos_data
+            )
+        except sqlite3.IntegrityError as e:
+            print("Video already exists. Skipping...")
+
+    conn.commit()
+
+    return
+
+# Delete the specified playlist
+# TODO: Test if video is retained when two playlists include it
+def delete_playlist(playlist_id):
+    # Remove playlist metadata
+    cursor.execute(
+        '''DELETE FROM playlist_data WHERE p_id = ?''', 
+        (playlist_id,)
+    )
+
+    # Remove playlist
+    cursor.execute(
+        '''DELETE FROM playlist_items WHERE p_id = ?''', 
+        (playlist_id,)
+    )
+
+    # Remove video data from videos referenced only by the specified playlist
+    cursor.execute('''
+        DELETE FROM videos
+        WHERE vid_id IN (
+            SELECT v.vid_id
+            FROM videos v
+            LEFT JOIN playlist_items p
+                ON v.vid_id = p.vid_id
+            WHERE p.vid_id IS NULL
+        )'''
+    )
+
+    conn.commit()
+
     return
 
 # Instantiate or load the database
@@ -591,6 +674,15 @@ if __name__ == '__main__':
         "--export",
         help="Export a playlist as a set of CSV files"
     )
+    parser.add_argument(
+        "--import",
+        dest="import_file",
+        help="Import a playlist from a set of CSV files"
+    )
+    parser.add_argument(
+        "--delete",
+        help="Delete a locally stored playlist by ID"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -651,14 +743,24 @@ if __name__ == '__main__':
             playlist_id = args.search[0]
             title = args.search[1]
             search_in_playlist(playlist_id, title)
+        # Importing/exporting
         elif args.export:
             export_playlist(args.export)
-            
-        # Close database connection
-        conn.close()
+        elif args.import_file:
+            import_playlist(args.import_file)
+        # Deleting playlists
+        elif args.delete:
+            delete_playlist(args.delete)
+        else:
+            cursor.execute('''SELECT * FROM videos''')
+            print(cursor.fetchall())
+
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
         print(f"An error has occurred: {e}")
         traceback.print_exc()
+
+    # Close database connection
+    conn.close()
 
