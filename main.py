@@ -455,6 +455,32 @@ def search_in_playlist(playlist_id, query, n_results = 10):
 
     return
 
+# NOTE: Only change from above is SQL query. Combine in future...
+def search_all_videos(query, n_results = 10):
+    cursor.execute('''SELECT title, vid_id FROM videos''')
+    result = cursor.fetchall()
+    title_list = [row[0] for row in result]
+    # Set for for possible future REPL to mimic YouTube scroll feature
+    # Example: n=100, show 10 results at a time, option to view next page, etc.
+    vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
+
+    # Search for the closest titles to the search query string
+    close_matches = difflib.get_close_matches(
+            query, 
+            title_list, 
+            n=n_results, 
+            cutoff=0.15     # Roughly the sweet spot for my purposes
+    )
+
+    # Print best matches
+    if not close_matches:
+        print("No close matches found...")
+    else:
+        for close_match in close_matches:
+            print(f"\n{close_match}: {vid_dict[close_match]}\n")
+
+    return
+
 # Export a playlist as a set of CSV files (one for videos, other for metadata)
 def export_playlist(playlist_id):
     META_COLS = ["p_id", "title", "created", "last_update", "etag"]
@@ -666,7 +692,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--search",
-        nargs=2,
+        nargs='+',
         help="Search for a video by title in the specified playlist " +
              "(order: playlist ID, video title)"
     )
@@ -740,9 +766,14 @@ if __name__ == '__main__':
                 print_videos_from_playlist(args.open, order="DESC")
         # Search for a video in a playlist
         elif args.search:
-            playlist_id = args.search[0]
-            title = args.search[1]
-            search_in_playlist(playlist_id, title)
+            # Search all videos
+            if len(args.search) == 1:
+                search_all_videos(args.search[0])
+            # Search specific playlist
+            if len(args.search) == 2:
+                playlist_id = args.search[0]
+                title = args.search[1]
+                search_in_playlist(playlist_id, title)
         # Importing/exporting
         elif args.export:
             export_playlist(args.export)
@@ -751,9 +782,6 @@ if __name__ == '__main__':
         # Deleting playlists
         elif args.delete:
             delete_playlist(args.delete)
-        else:
-            cursor.execute('''SELECT * FROM videos''')
-            print(cursor.fetchall())
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
