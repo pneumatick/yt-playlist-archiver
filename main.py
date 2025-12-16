@@ -548,6 +548,37 @@ def import_playlist(file_name):
 
     return
 
+# Delete the specified playlist
+# TODO: Test if video is retained when two playlists include it
+def delete_playlist(playlist_id):
+    # Remove playlist metadata
+    cursor.execute(
+        '''DELETE FROM playlist_data WHERE p_id = ?''', 
+        (playlist_id,)
+    )
+
+    # Remove playlist
+    cursor.execute(
+        '''DELETE FROM playlist_items WHERE p_id = ?''', 
+        (playlist_id,)
+    )
+
+    # Remove video data from videos referenced only by the specified playlist
+    cursor.execute('''
+        DELETE FROM videos
+        WHERE vid_id IN (
+            SELECT v.vid_id
+            FROM videos v
+            LEFT JOIN playlist_items p
+                ON v.vid_id = p.vid_id
+            WHERE p.vid_id IS NULL
+        )'''
+    )
+
+    conn.commit()
+
+    return
+
 # Instantiate or load the database
 def instantiate_db():
     global conn
@@ -648,6 +679,10 @@ if __name__ == '__main__':
         dest="import_file",
         help="Import a playlist from a set of CSV files"
     )
+    parser.add_argument(
+        "--delete",
+        help="Delete a locally stored playlist by ID"
+    )
 
     # OAuth 2.0
     #youtube = get_authenticated_service()
@@ -713,12 +748,19 @@ if __name__ == '__main__':
             export_playlist(args.export)
         elif args.import_file:
             import_playlist(args.import_file)
-            
-        # Close database connection
-        conn.close()
+        # Deleting playlists
+        elif args.delete:
+            delete_playlist(args.delete)
+        else:
+            cursor.execute('''SELECT * FROM videos''')
+            print(cursor.fetchall())
+
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
     except Exception as e:
         print(f"An error has occurred: {e}")
         traceback.print_exc()
+
+    # Close database connection
+    conn.close()
 
