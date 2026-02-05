@@ -7,7 +7,7 @@ import difflib
 import csv
 import pandas as pd
 
-import google.oauth2.credentials
+from google.oauth2.credentials import Credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -28,7 +28,7 @@ CLIENT_SECRETS_FILE = 'client_secret.json'
 
 # This OAuth 2.0 access scope allows for full read/write access to the
 # authenticated user's account.
-SCOPES = ['https://www.googleapis.com/auth/youtube']
+SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
@@ -45,9 +45,25 @@ VIDEOS_COLS = ['vid_id', 'title', 'status']
 
 # Authorize the request and store authorization credentials. (OAuth 2.0)
 def get_authenticated_service():
-  flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
-  credentials = flow.run_console()
-  return build(API_SERVICE_NAME, API_VERSION, credentials = credentials)
+    credentials = None
+
+    # Load token if it exists
+    if os.path.exists("token.json"):
+        credentials = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    # Request login when credentials are nonexistent or expired
+    if not credentials or not credentials.valid:
+        if credentials and credentials.expired and credentials.refresh_token:
+            credentials.refresh(Request())
+        else:
+          flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
+          credentials = flow.run_local_server(port=0)
+
+        # Save token for subsequent use
+        with open("token.json", "w") as token:
+            token.write(credentials.to_json())
+
+    return build(API_SERVICE_NAME, API_VERSION, credentials = credentials)
 
 # Get the API key from the specified text file
 def get_api_key(path="secrets.txt"):
@@ -710,17 +726,18 @@ if __name__ == '__main__':
         help="Delete a locally stored playlist by ID"
     )
 
-    # OAuth 2.0
-    #youtube = get_authenticated_service()
-
-    key = get_api_key()
-    if not key:
-        print("Failed to get API key. Quitting...")
-        quit()
-
     try:
+        """
+        key = get_api_key()
+        if not key:
+            print("Failed to get API key. Quitting...")
+            quit()
         # Set up YouTube API (global variable)
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
+        """
+
+        # OAuth 2.0
+        youtube = get_authenticated_service()
 
         # Get args
         args = parser.parse_args()
@@ -785,6 +802,7 @@ if __name__ == '__main__':
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
+        traceback.print_exc()
     except Exception as e:
         print(f"An error has occurred: {e}")
         traceback.print_exc()
