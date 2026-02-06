@@ -8,6 +8,7 @@ import csv
 import pandas as pd
 
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -18,12 +19,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # client_secret. You can acquire an OAuth 2.0 client ID and client secret from
 # the {{ Google Cloud Console }} at
 # {{ https://cloud.google.com/console }}.
-# Please ensure that you have enabled the YouTube Data API for your project.
-# For more information about using OAuth2 to access the YouTube Data API, see:
-#   https://developers.google.com/youtube/v3/guides/authentication
-# For more information about the client_secrets.json file format, see:
-#   https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
-
 CLIENT_SECRETS_FILE = 'client_secret.json'
 
 # This OAuth 2.0 access scope allows for full read/write access to the
@@ -65,6 +60,7 @@ def get_authenticated_service():
 
     return build(API_SERVICE_NAME, API_VERSION, credentials = credentials)
 
+'''
 # Get the API key from the specified text file
 def get_api_key(path="secrets.txt"):
     try:
@@ -74,6 +70,7 @@ def get_api_key(path="secrets.txt"):
     except Exception as e:
         print(f"An error occured while attempting to get API key: {e}")
         return None
+'''
 
 # Retrieve n items (50 max) from a playlist
 def get_playlist_page(playlist_id, n_items = 50, next_page = None):
@@ -445,7 +442,7 @@ def search_in_playlist(playlist_id, query, n_results = 10):
     cursor.execute(
          '''SELECT videos.title, videos.vid_id FROM videos
          LEFT JOIN playlist_items ON playlist_items.vid_id = videos.vid_id
-         WHERE playlist_items.p_id = ?''',
+         WHERE playlist_items.p_id = ? AND NOT videos.status = "private"''',
          (playlist_id,)
      )
     result = cursor.fetchall()
@@ -473,7 +470,7 @@ def search_in_playlist(playlist_id, query, n_results = 10):
 
 # NOTE: Only change from above is SQL query. Combine in future...
 def search_all_videos(query, n_results = 10):
-    cursor.execute('''SELECT title, vid_id FROM videos''')
+    cursor.execute('''SELECT title, vid_id FROM videos WHERE NOT status = "private"''')
     result = cursor.fetchall()
     title_list = [row[0] for row in result]
     # Set for for possible future REPL to mimic YouTube scroll feature
@@ -591,7 +588,6 @@ def import_playlist(file_name):
     return
 
 # Delete the specified playlist
-# TODO: Test if video is retained when two playlists include it
 def delete_playlist(playlist_id):
     # Remove playlist metadata
     cursor.execute(
@@ -727,6 +723,46 @@ if __name__ == '__main__':
     )
 
     try:
+        # Get args
+        args = parser.parse_args()
+
+        # Load or create database
+        instantiate_db()
+
+        # Execute functions according to args
+
+        ''' Local Functions '''
+
+        # List all archived playlists
+        if args.list:
+            print_all_playlists()
+        # Print videos from a playlist
+        elif args.open:
+            if args.ascend:
+                print_videos_from_playlist(args.open, order="ASC")
+            else:
+                print_videos_from_playlist(args.open, order="DESC")
+        # Search for a video in a playlist
+        elif args.search:
+            # Search all videos
+            if len(args.search) == 1:
+                search_all_videos(args.search[0])
+            # Search specific playlist
+            if len(args.search) == 2:
+                playlist_id = args.search[0]
+                title = args.search[1]
+                search_in_playlist(playlist_id, title)
+        # Importing/exporting
+        elif args.export:
+            export_playlist(args.export)
+        elif args.import_file:
+            import_playlist(args.import_file)
+        # Deleting playlists
+        elif args.delete:
+            delete_playlist(args.delete)
+
+        ''' Remote Functions '''
+
         """
         key = get_api_key()
         if not key:
@@ -735,17 +771,8 @@ if __name__ == '__main__':
         # Set up YouTube API (global variable)
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
         """
-
         # OAuth 2.0
         youtube = get_authenticated_service()
-
-        # Get args
-        args = parser.parse_args()
-
-        # Load or create database
-        instantiate_db()
-
-        # Execute functions according to args
 
         # Single playlist
         if args.id:
@@ -772,33 +799,7 @@ if __name__ == '__main__':
         # Archive an entire playlist by id
         elif args.archive:
             archive_playlist(args.archive)
-        # List all archived playlists
-        elif args.list:
-            print_all_playlists()
-        # Print videos from a playlist
-        elif args.open:
-            if args.ascend:
-                print_videos_from_playlist(args.open, order="ASC")
-            else:
-                print_videos_from_playlist(args.open, order="DESC")
-        # Search for a video in a playlist
-        elif args.search:
-            # Search all videos
-            if len(args.search) == 1:
-                search_all_videos(args.search[0])
-            # Search specific playlist
-            if len(args.search) == 2:
-                playlist_id = args.search[0]
-                title = args.search[1]
-                search_in_playlist(playlist_id, title)
-        # Importing/exporting
-        elif args.export:
-            export_playlist(args.export)
-        elif args.import_file:
-            import_playlist(args.import_file)
-        # Deleting playlists
-        elif args.delete:
-            delete_playlist(args.delete)
+
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
