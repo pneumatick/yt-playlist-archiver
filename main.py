@@ -724,18 +724,6 @@ if __name__ == '__main__':
     )
 
     try:
-        """
-        key = get_api_key()
-        if not key:
-            print("Failed to get API key. Quitting...")
-            quit()
-        # Set up YouTube API (global variable)
-        youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
-        """
-
-        # OAuth 2.0
-        youtube = get_authenticated_service()
-
         # Get args
         args = parser.parse_args()
 
@@ -744,30 +732,10 @@ if __name__ == '__main__':
 
         # Execute functions according to args
 
-        # Single playlist
-        if args.id:
-            playlist_id = args.id
-            if not args.number:
-                get_entire_playlist(playlist_id, "print")
-            else:
-                n_items = args.number
-                print(f"Getting {n_items} items from playlist {playlist_id}")
-                get_n_playlist_items(playlist_id, n_items=n_items)
-        # Playlist file
-        elif args.file:
-            if args.number:
-                n_items = args.number
-                retrieve_items_from_playlists(args.file, n_items)
-            elif args.n_list:
-                n_list = args.n_list
-                retrieve_items_from_playlists(args.file, n_list)
-            else:
-                retrieve_items_from_playlists(args.file) 
-        # Checking playlist for changes
-        elif args.check:
-            check_playlist_for_changes(args.check)
+        ''' Local Functions '''
+
         # Archive an entire playlist by id
-        elif args.archive:
+        if args.archive:
             archive_playlist(args.archive)
         # List all archived playlists
         elif args.list:
@@ -796,6 +764,43 @@ if __name__ == '__main__':
         # Deleting playlists
         elif args.delete:
             delete_playlist(args.delete)
+
+        ''' Remote Functions '''
+
+        """
+        key = get_api_key()
+        if not key:
+            print("Failed to get API key. Quitting...")
+            quit()
+        # Set up YouTube API (global variable)
+        youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
+        """
+        # OAuth 2.0
+        youtube = get_authenticated_service()
+
+        # Single playlist
+        if args.id:
+            playlist_id = args.id
+            if not args.number:
+                get_entire_playlist(playlist_id, "print")
+            else:
+                n_items = args.number
+                print(f"Getting {n_items} items from playlist {playlist_id}")
+                get_n_playlist_items(playlist_id, n_items=n_items)
+        # Playlist file
+        elif args.file:
+            if args.number:
+                n_items = args.number
+                retrieve_items_from_playlists(args.file, n_items)
+            elif args.n_list:
+                n_list = args.n_list
+                retrieve_items_from_playlists(args.file, n_list)
+            else:
+                retrieve_items_from_playlists(args.file) 
+        # Checking playlist for changes
+        elif args.check:
+            check_playlist_for_changes(args.check)
+
 
     except HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
