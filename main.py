@@ -442,7 +442,7 @@ def search_in_playlist(playlist_id, query, n_results = 10):
     cursor.execute(
          '''SELECT videos.title, videos.vid_id FROM videos
          LEFT JOIN playlist_items ON playlist_items.vid_id = videos.vid_id
-         WHERE playlist_items.p_id = ?''',
+         WHERE playlist_items.p_id = ? AND NOT videos.status = "private"''',
          (playlist_id,)
      )
     result = cursor.fetchall()
@@ -470,7 +470,7 @@ def search_in_playlist(playlist_id, query, n_results = 10):
 
 # NOTE: Only change from above is SQL query. Combine in future...
 def search_all_videos(query, n_results = 10):
-    cursor.execute('''SELECT title, vid_id FROM videos''')
+    cursor.execute('''SELECT title, vid_id FROM videos WHERE NOT status = "private"''')
     result = cursor.fetchall()
     title_list = [row[0] for row in result]
     # Set for for possible future REPL to mimic YouTube scroll feature
@@ -588,7 +588,6 @@ def import_playlist(file_name):
     return
 
 # Delete the specified playlist
-# TODO: Test if video is retained when two playlists include it
 def delete_playlist(playlist_id):
     # Remove playlist metadata
     cursor.execute(
