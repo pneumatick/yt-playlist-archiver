@@ -734,11 +734,8 @@ if __name__ == '__main__':
 
         ''' Local Functions '''
 
-        # Archive an entire playlist by id
-        if args.archive:
-            archive_playlist(args.archive)
         # List all archived playlists
-        elif args.list:
+        if args.list:
             print_all_playlists()
         # Print videos from a playlist
         elif args.open:
@@ -800,6 +797,9 @@ if __name__ == '__main__':
         # Checking playlist for changes
         elif args.check:
             check_playlist_for_changes(args.check)
+        # Archive an entire playlist by id
+        elif args.archive:
+            archive_playlist(args.archive)
 
 
     except HttpError as e:
