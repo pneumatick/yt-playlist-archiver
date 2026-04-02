@@ -1,4 +1,5 @@
 import argparse
+from yt_gui import run_gui
 import os
 import sqlite3
 import datetime
@@ -740,6 +741,10 @@ if __name__ == '__main__':
         "--delete",
         help="Delete a locally stored playlist by ID"
     )
+    parser.add_argument(
+        "--gui",
+        help="Launch YouTube Playlist Archiver GUI"
+    )
 
     try:
         # Get args
@@ -818,6 +823,9 @@ if __name__ == '__main__':
         # Archive an entire playlist by id
         elif args.archive:
             archive_playlist(args.archive)
+        # GUI
+        elif args.gui:
+            run_gui()
 
 
     except HttpError as e:
