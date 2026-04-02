@@ -3,7 +3,6 @@ import os
 import sqlite3
 import datetime
 import traceback
-import difflib
 import csv
 import pandas as pd
 
@@ -259,7 +258,7 @@ def get_etag(playlist_id) -> str:
     return response["etag"]
 
 # Check if the playlist has received changes since the last archival event
-def check_playlist_for_changes(playlist_id) -> (bool, str):
+def check_playlist_for_changes(playlist_id) -> tuple[bool, str]:
     try:
         # Get the playlist's etag
         etag = get_etag(playlist_id)
@@ -436,61 +435,48 @@ def print_videos_from_playlist(playlist_id, order = "DESC"):
             f"\nAdded: {added}\nStatus: {status}"
         )
 
-# Search for a video in the specified playlist
-def search_in_playlist(playlist_id, query, n_results = 10):
-    # Fetch all videos from the specified playlist
-    cursor.execute(
-         '''SELECT videos.title, videos.vid_id FROM videos
-         LEFT JOIN playlist_items ON playlist_items.vid_id = videos.vid_id
-         WHERE playlist_items.p_id = ? AND NOT videos.status = "private"''',
-         (playlist_id,)
-     )
+# Search for a video in the specified playlist using FTS5
+def search_in_playlist_fts(playlist_id, query, n_results = 10):
+    # Query videos that are in the playlist and match the FTS5 search
+    cursor.execute('''
+        SELECT v.title, v.vid_id, v.rank
+        FROM videos_fts AS v
+        LEFT JOIN playlist_items ON playlist_items.vid_id = v.vid_id
+        WHERE v.videos_fts MATCH ?
+            AND playlist_items.p_id = ?
+        ORDER BY v.rank
+        LIMIT ?
+    ''', (query, playlist_id, n_results))
     result = cursor.fetchall()
-    title_list = [row[0] for row in result]
-    # Set for for possible future REPL to mimic YouTube scroll feature
-    # Example: n=100, show 10 results at a time, option to view next page, etc.
-    vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
-
-    # Search for the closest titles to the search query string
-    close_matches = difflib.get_close_matches(
-            query, 
-            title_list, 
-            n=n_results, 
-            cutoff=0.15     # Roughly the sweet spot for my purposes
-    )
-
+    
     # Print best matches
-    if not close_matches:
+    if not result:
         print("No close matches found...")
     else:
-        for close_match in close_matches:
-            print(f"\n{close_match}: {vid_dict[close_match]}\n")
+        vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
+        for title, vid_id in vid_dict.items():
+            print(f"\n{title}: {vid_id}\n")
 
     return
 
-# NOTE: Only change from above is SQL query. Combine in future...
-def search_all_videos(query, n_results = 10):
-    cursor.execute('''SELECT title, vid_id FROM videos WHERE NOT status = "private"''')
+# Search all videos using FTS5 (replaces difflib-based search)
+def search_all_videos_fts(query, n_results = 10):
+    cursor.execute('''
+        SELECT title, vid_id, rank
+        FROM videos_fts
+        WHERE videos_fts MATCH ?
+        ORDER BY rank DESC
+        LIMIT ?
+    ''', (query, n_results))
     result = cursor.fetchall()
-    title_list = [row[0] for row in result]
-    # Set for for possible future REPL to mimic YouTube scroll feature
-    # Example: n=100, show 10 results at a time, option to view next page, etc.
-    vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
-
-    # Search for the closest titles to the search query string
-    close_matches = difflib.get_close_matches(
-            query, 
-            title_list, 
-            n=n_results, 
-            cutoff=0.15     # Roughly the sweet spot for my purposes
-    )
-
+    
     # Print best matches
-    if not close_matches:
+    if not result:
         print("No close matches found...")
     else:
-        for close_match in close_matches:
-            print(f"\n{close_match}: {vid_dict[close_match]}\n")
+        vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
+        for title, vid_id in vid_dict.items():
+            print(f"\n{title}: {vid_id}\n")
 
     return
 
@@ -650,6 +636,40 @@ def instantiate_db():
             status VARCHAR(16)
         )
     ''')
+    
+    # Create FTS5 virtual table for full-text search
+    cursor.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS videos_fts USING fts5(
+            vid_id, 
+            title, 
+            content="videos",
+            tokenize="trigram"
+        )
+    ''')
+    
+    # Create trigger to automatically sync FTS5 on INSERT
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS videos_ai AFTER INSERT ON videos BEGIN
+            INSERT INTO videos_fts(vid_id, title) 
+            VALUES (NEW.vid_id, NEW.title);
+        END;
+    ''')
+    
+    # Create trigger to automatically sync FTS5 on UPDATE
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS videos_au AFTER UPDATE ON videos BEGIN
+            INSERT INTO videos_fts(vid_id, title) 
+            VALUES (NEW.vid_id, NEW.title);
+        END;
+    ''')
+    
+    # Create trigger to automatically sync FTS5 on DELETE
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS videos_ad AFTER DELETE ON videos BEGIN
+            INSERT INTO videos_fts(vid_id, title) 
+            VALUES (OLD.vid_id, OLD.title);
+        END;
+    ''')
 
     conn.commit()
 
@@ -705,8 +725,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--search",
         nargs='+',
-        help="Search for a video by title in the specified playlist " +
-             "(order: playlist ID, video title)"
+        help="Search for videos using FTS5 full-text search (order: playlist ID (optional), query)"
     )
     parser.add_argument(
         "--export",
@@ -746,12 +765,12 @@ if __name__ == '__main__':
         elif args.search:
             # Search all videos
             if len(args.search) == 1:
-                search_all_videos(args.search[0])
+                search_all_videos_fts(args.search[0])
             # Search specific playlist
             if len(args.search) == 2:
                 playlist_id = args.search[0]
                 title = args.search[1]
-                search_in_playlist(playlist_id, title)
+                search_in_playlist_fts(playlist_id, title)
         # Importing/exporting
         elif args.export:
             export_playlist(args.export)
