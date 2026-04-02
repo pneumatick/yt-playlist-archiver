@@ -11,9 +11,30 @@ from tkinter import *
 from tkinter import ttk, messagebox, filedialog as fd
 import datetime
 
+# Global treeview widgets (shared between class methods and global functions)
+# These are initialized to None and set by the GUI class when needed
+playlist_treeview = None
+video_treeview = None
+
+# Helper function to get module-level status variable (uses provided master)
+def _get_status_var(master=None):
+    """Get or create StringVar for status bar."""
+    global status_var
+    if status_var is None:
+        if master:
+            status_var = StringVar(master, "Ready")
+        else:
+            # If no master provided, try to get Tk root
+            try:
+                from tkinter import _default_root as tk_root
+                status_var = StringVar(tk_root, "Ready")
+            except RuntimeError:
+                status_var = None
+    return status_var if status_var is not None else None
+
 
 # Import core functions from main.py (excluding argparse)
-import main as yt
+import archiver as yt
 
 
 # Global variables
@@ -425,27 +446,9 @@ class PlaylistArchiverGUI:
         scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.playlist_treeview.yview)
         self.playlist_treeview.configure(yscrollcommand=scrollbar.set)
         
-        canvas = ttk.Canvas(frame, scrollregion=self.playlist_treeview.bbox("all"), 
-                           highlightthickness=0)
-        self.v_scrollbar = ttk.Scrollbar(canvas, orient="vertical", command=self.playlist_treeview.yview)
-        self.h_scrollbar = ttk.Scrollbar(canvas, orient="horizontal", command=self.playlist_treeview.xview)
-        
-        self.playlist_treeview.bind(
-            "<Configure>", 
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=self.playlist_treeview, anchor="nw")
-        canvas.configure(yscrollcommand=self.v_scrollbar.set)
-        self.v_scrollbar.bind('<ButtonRelease-4>', lambda e: self.playlist_treeview.rowconfigure(*self.playlist_treeview.index_from_row(int(e.y))))  # Scroll on mouse wheel
-        
-        canvas.grid(row=0, column=0, sticky='nsew', padx=(0, 5))
-        self.v_scrollbar.grid(row=1, column=0, sticky='ns')
-        self.h_scrollbar.grid(row=0, column=1, sticky='ew')
-        canvas.grid_rowconfigure(0, weight=1)
-        canvas.grid_columnconfigure(0, weight=1)
-        
-        self.playlist_treeview.pack(fill='both', expand=True)
+        # Use pack layout for treeview and scrollbar (consistent with parent frame using pack)
+        self.playlist_treeview.pack(fill='both', expand=True, padx=(0, 5))
+        scrollbar.pack(side='right', fill='y')
         
         # Add sample playlists if empty (for demonstration)
         if len(self.playlist_treeview.get_children()) == 0:
@@ -516,16 +519,9 @@ class PlaylistArchiverGUI:
         scrollbar = ttk.Scrollbar(video_frame, orient="vertical", command=self.video_treeview.yview)
         self.video_treeview.configure(yscrollcommand=scrollbar.set)
         
-        canvas = ttk.Canvas(video_frame, highlightthickness=0)
-        canvas.create_window((0, 0), window=self.video_treeview, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.grid(row=0, column=0, sticky='nsew')
-        scrollbar.grid(row=1, column=0, sticky='ns')
-        video_frame.grid_columnconfigure(0, weight=1)
-        canvas.grid_rowconfigure(0, weight=1)
-        
+        # Use pack layout for treeview and scrollbar (consistent with parent frame using pack)
         self.video_treeview.pack(fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
     
     def create_archive_tab(self):
         """Create the archive tab (archive new playlists)."""
@@ -618,7 +614,7 @@ If you want to update an already archived playlist, go to the Dashboard and sele
         """Run the search action."""
         query = self.search_query_var.get().strip()
         if query:
-            self.search_videos()
+            search_videos()
     
     def create_import_export_tab(self):
         """Create the import/export tab."""
@@ -697,4 +693,3 @@ def run_gui():
     
     # Run main loop
     root.mainloop()
-    
