@@ -2,7 +2,8 @@ import argparse
 import traceback
 
 import archiver as arch
-from yt_gui import run_gui
+import sys
+from gui_archiver import create_gui_application, PlaylistArchiverGUI, MainWindow
 
 if __name__ == '__main__':
 
@@ -156,7 +157,17 @@ if __name__ == '__main__':
             arch.archive_playlist(args.archive)
         # GUI
         elif args.gui:
-            run_gui()
+            # Create QApplication and launch GUI
+            gui = create_gui_application(arch.conn, arch.cursor)
+            window = gui.window
+            gui.window.show()
+            gui.app.exec()
+            
+            # Only close db when app is closed
+            @gui.app.lastWindowClosed.connect
+            def on_closed():
+                print("GUI closing...")
+            quit()
 
 
     except arch.HttpError as e:
