@@ -640,6 +640,7 @@ def instantiate_db():
             vid_id, 
             title, 
             content="videos",
+            content_rowid="rowid",
             tokenize="trigram"
         )
     ''')
@@ -647,24 +648,23 @@ def instantiate_db():
     # Create trigger to automatically sync FTS5 on INSERT
     cursor.execute('''
         CREATE TRIGGER IF NOT EXISTS videos_ai AFTER INSERT ON videos BEGIN
-            INSERT INTO videos_fts(vid_id, title) 
-            VALUES (NEW.vid_id, NEW.title);
+            INSERT INTO videos_fts(rowid, vid_id, title) 
+            VALUES (NEW.rowid, NEW.vid_id, NEW.title);
         END;
     ''')
     
     # Create trigger to automatically sync FTS5 on UPDATE
     cursor.execute('''
         CREATE TRIGGER IF NOT EXISTS videos_au AFTER UPDATE ON videos BEGIN
-            INSERT INTO videos_fts(vid_id, title) 
-            VALUES (NEW.vid_id, NEW.title);
+            INSERT INTO videos_fts(videos_fts, rowid, vid_id, title) VALUES('delete', OLD.rowid, OLD.vid_id, OLD.title);
+            INSERT INTO videos_fts(rowid, vid_id, title) VALUES (NEW.rowid, NEW.vid_id, NEW.title);
         END;
     ''')
     
     # Create trigger to automatically sync FTS5 on DELETE
     cursor.execute('''
         CREATE TRIGGER IF NOT EXISTS videos_ad AFTER DELETE ON videos BEGIN
-            INSERT INTO videos_fts(vid_id, title) 
-            VALUES (OLD.vid_id, OLD.title);
+            INSERT INTO videos_fts(videos_fts, rowid, vid_id, title) VALUES('delete', OLD.rowid, OLD.vid_id, OLD.title);
         END;
     ''')
 
