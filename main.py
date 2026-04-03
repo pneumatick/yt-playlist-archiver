@@ -128,7 +128,7 @@ if __name__ == '__main__':
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
         """
         # OAuth 2.0
-        youtube = arch.get_authenticated_service()
+        arch.youtube = arch.get_authenticated_service()
 
         # Single playlist
         if args.id:

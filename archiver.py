@@ -371,9 +371,9 @@ def peek_playlist_top(playlist_id):
         cursor.execute(
             '''
                 UPDATE playlist_items SET position = position + ?
-                WHERE p_id = ? AND position >= ? - 1
+                WHERE p_id = ?
             ''',
-            (len(new_videos["items"]), playlist_id, len(new_videos["items"]))
+            (len(new_videos["items"]), playlist_id)
         )
         archive_playlist_response(playlist_id, new_videos) 
  
