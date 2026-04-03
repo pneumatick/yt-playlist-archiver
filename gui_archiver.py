@@ -137,11 +137,9 @@ class MainWindow(QMainWindow):
         self.view_videos_btn2.clicked.connect(self.show_all_videos_from_playlist)
         self.view_videos_btn2.setEnabled(False)
         detail_buttons_layout.addWidget(self.view_videos_btn2)
-        
-        #self.details_viewer.addLayout(detail_buttons_layout)
 
         right_layout.addWidget(self.details_viewer, 1)
-
+        right_layout.addLayout(detail_buttons_layout, 2)
         main_layout.addWidget(right_panel, stretch=3)
 
         # Apply font
