@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
         self.playlist_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.playlist_table.setAlternatingRowColors(True)
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.playlist_table.itemClicked.connect(self.on_playlist_selected)
         #self.playlist_table.setItemSelectionBehavior(QTableWidget.SelectItems)
         
         left_layout.addWidget(self.playlist_table)
@@ -105,7 +106,7 @@ class MainWindow(QMainWindow):
         btn_section = QFrame()
         btn_layout = QHBoxLayout(btn_section)
         
-        self.open_btn = QPushButton("Open Playlist")
+        self.open_btn = QPushButton("Open Playlist In Browser")
         self.open_btn.clicked.connect(self.open_selected_playlist)
         self.open_btn.setEnabled(False)  # Enable when playlist selected
         
@@ -245,10 +246,10 @@ class MainWindow(QMainWindow):
         #self.playlist_table.setSelectionRow(self.playlist_table.rowCount() - 1)
 
     @Slot(int)
-    def on_playlist_selected(self, index):
+    def on_playlist_selected(self, item):
         """Handle playlist selection."""
-        if index >= 0:
-            row = index
+        row = item.row()
+        if row >= 0:
             p_id = self.playlist_table.item(row, 0).text()
             title = self.playlist_table.item(row, 1).text()
 
