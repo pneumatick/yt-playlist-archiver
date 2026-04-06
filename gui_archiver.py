@@ -19,6 +19,7 @@ except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
 
+import archiver as arch
 
 class PlaylistArchiverGUI:
     """Main GUI class for the YouTube Playlist Archiver."""
@@ -408,19 +409,7 @@ class MainWindow(QMainWindow):
 
         # Use the FTS5 search from archiver.py directly via cursor
         try:
-            results = self.cursor.execute(
-                """
-                    SELECT v.title, v.vid_id, v.rank
-                    FROM videos_fts AS v
-                    LEFT JOIN playlist_items ON playlist_items.vid_id = v.vid_id
-                    WHERE v.videos_fts MATCH ?
-                        AND playlist_items.p_id = ?
-                    ORDER BY v.rank
-                    LIMIT 10
-                """,
-                (query_text, p_id)
-            )
-            search_results = self.cursor.fetchall()
+            search_results = arch.search_in_playlist_fts(p_id, query_text)
 
             if not search_results:
                 self.details_viewer.append(f"No results found for '{query_text}' in {title}.")
@@ -457,17 +446,7 @@ class MainWindow(QMainWindow):
 
         # Use the FTS5 search from archiver.py directly via cursor
         try:
-            results = self.cursor.execute(
-                """
-                    SELECT title, vid_id, rank
-                    FROM videos_fts
-                    WHERE videos_fts MATCH ?
-                    ORDER BY rank DESC
-                    LIMIT 10
-                """,
-                (query_text,)
-            )
-            search_results = self.cursor.fetchall()
+            search_results = arch.search_all_videos_fts(query_text)
 
             if not search_results:
                 self.details_viewer.append(f"No results found for '{query_text}' in all videos.")
