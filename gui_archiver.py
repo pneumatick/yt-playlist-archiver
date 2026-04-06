@@ -277,6 +277,9 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Created: {created_dt}")
             self.details_viewer.append(f"Last Updated: {last_update_dt}")
 
+            # Show all videos from the selected playlist
+            self.show_all_videos_from_playlist()
+
     @Slot()
     def open_selected_playlist(self):
         """Open the selected playlist in a browser."""
