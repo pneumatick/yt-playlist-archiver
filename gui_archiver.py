@@ -12,7 +12,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QSplitter, QTextBrowser, QHeaderView, QFrame
+        QComboBox, QSplitter, QTextBrowser, QHeaderView, QFrame, QLabel
     )
     from PySide6.QtCore import Qt, Signal, Slot
     from PySide6.QtGui import QFont, QIcon
@@ -334,9 +334,6 @@ class MainWindow(QMainWindow):
                 video_url = f"https://www.youtube.com/watch?v={vid_id}"
                 self.details_viewer.append(f"{position + 1}. {video_url}")
             else:
-                # Load more button
-                next_page_token_query = f"""SELECT nextPageToken FROM playlistItemsList 
-                    WHERE playlistId = '{p_id}'"""
                 try:
                     # Simple approach - just show count and let user see first 50
                     self.details_viewer.append(f"\n--- First {len(videos)} of 50 videos shown ---")
