@@ -13,7 +13,7 @@ try:
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
         QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel
     )
-    from PySide6.QtCore import Qt, Slot
+    from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app  # Store reference to QApplication
+        self.search_timer = None  # Timer for debouncing search input
         self.init_ui()
 
     def init_ui(self):
@@ -91,7 +92,7 @@ class MainWindow(QMainWindow):
 
         self.video_search_input = QLineEdit()
         self.video_search_input.setPlaceholderText("Search videos...")
-        #self.video_search_input.textChanged.connect(self.on_video_search_text_changed)
+        self.video_search_input.textChanged.connect(self.on_video_search_text_changed)
 
         self.search_all_btn = QPushButton("Search All Videos")
         self.search_all_btn.clicked.connect(self.search_videos_all_playlists)
@@ -433,6 +434,35 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"Error searching videos: {e}")
+
+    @Slot(str)
+    def on_video_search_text_changed(self, text=None):
+        """Handle video search text change with debouncing."""
+        
+        # Stop the timer if running
+        if self.search_timer:
+            self.search_timer.stop()
+
+        query_text = text if text is not None else self.video_search_input.text().strip()
+
+        # Don't search if empty or too short (at least 3 characters)
+        if not query_text or len(query_text) < 3:
+            return
+
+        # Start timer to debounce - wait 200ms after user stops typing
+        self.search_timer = QTimer(self)
+        self.search_timer.timeout.connect(lambda: None)
+        self.search_timer.singleShot(200, self._perform_video_search)
+        self.search_timer.start()
+
+    def _perform_video_search(self):
+        """Perform the actual video search using archiver FTS5 functions."""
+
+        # If no playlist is selected, search all videos
+        if self.playlist_table.currentRow() < 0:
+            self.search_videos_all_playlists()
+        else:
+            self.search_videos_in_playlist()
 
     @Slot()
     def search_videos_all_playlists(self):
