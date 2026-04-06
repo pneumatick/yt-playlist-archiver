@@ -12,11 +12,12 @@ The program stores playlist metadata and video information locally in a **SQLite
 * Archive playlists locally into a SQLite database
 * Detect playlist updates using ETags
 * Incrementally update playlists when new videos are added
-* Search videos locally by fuzzy title matching
+* Search videos locally (FTS5)
 * Export playlists to CSV (videos + metadata)
 * Import playlists from CSV
 * Delete locally stored playlists
 * Command-line interface for automation and scripting
+* GUI interface (PySide6)
 
 ---
 
@@ -110,6 +111,12 @@ Delete playlist from local database:
 python main.py --delete PLAYLIST_ID
 ```
 
+Launch GUI:
+
+```bash
+python main.py --gui
+```
+
 ---
 
 ## Database
@@ -125,6 +132,7 @@ Tables:
 * `playlist_data` — playlist metadata
 * `playlist_items` — playlist positions and timestamps
 * `videos` — video titles and status
+* `videos_fts` - virtual table for video search queries (linked to `videos` table, updated by triggers)
 
 ---
 

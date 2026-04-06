@@ -6,20 +6,20 @@ A PySide6-based graphical interface for browsing and viewing archived YouTube pl
 
 import sys
 from datetime import datetime
-from typing import List, Optional
 
 try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QSplitter, QTextBrowser, QHeaderView, QFrame
+        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel
     )
-    from PySide6.QtCore import Qt, Signal, Slot
-    from PySide6.QtGui import QFont, QIcon
+    from PySide6.QtCore import Qt, Slot, QTimer
+    from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
 
+import archiver as arch
 
 class PlaylistArchiverGUI:
     """Main GUI class for the YouTube Playlist Archiver."""
@@ -44,17 +44,19 @@ class MainWindow(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app  # Store reference to QApplication
+        self.search_timer = None  # Timer for debouncing search input
         self.init_ui()
 
     def init_ui(self):
         """Initialize the user interface."""
+
         self.setWindowTitle("YouTube Playlist Archiver")
         self.setGeometry(100, 100, 1200, 800)
 
         # Central widget with splitter for panels
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)  # Changed to vertical layout
+        main_layout = QVBoxLayout(central_widget)
 
         # Left panel - Playlist list
         left_panel = QFrame()
@@ -64,15 +66,15 @@ class MainWindow(QMainWindow):
         # Playlist search and filter section
         filter_section = QFrame()
         filter_layout = QHBoxLayout(filter_section)
-        
+
         self.playlist_search = QLineEdit()
         self.playlist_search.setPlaceholderText("Search playlists...")
         self.playlist_search.textChanged.connect(self.filter_playlists)
-        
+
         self.sort_combo = QComboBox()
         self.sort_combo.addItems(["Newest First", "Oldest First", "Alphabetical"])
         self.sort_combo.currentIndexChanged.connect(self.refresh_playlists)
-        
+
         filter_layout.addWidget(QLabel("Search:"))
         filter_layout.addWidget(self.playlist_search, 1)
         filter_layout.addWidget(QLabel("Sort by:"))
@@ -83,6 +85,35 @@ class MainWindow(QMainWindow):
         self.refresh_btn.clicked.connect(self.load_playlists)
         filter_layout.addStretch()
         filter_layout.addWidget(self.refresh_btn)
+
+        # Video search section for searching within playlist or all videos
+        search_section = QFrame()
+        search_layout = QHBoxLayout(search_section)
+
+        self.video_search_input = QLineEdit()
+        self.video_search_input.setPlaceholderText("Search videos...")
+        self.video_search_input.textChanged.connect(self.on_video_search_text_changed)
+
+        self.search_all_btn = QPushButton("Search All Videos")
+        self.search_all_btn.clicked.connect(self.search_videos_all_playlists)
+
+        self.search_playlist_btn = QPushButton("Search in Playlist")
+        self.search_playlist_btn.clicked.connect(self.search_videos_in_playlist)
+        self.search_playlist_btn.setEnabled(False)  # Enable when playlist selected
+
+        # Add search button visibility indicator (hidden by default)
+        self.search_button_placeholder = QLabel("")  # Placeholder to maintain layout
+
+        search_layout.addWidget(QLabel("Video Search:"))
+        search_layout.addWidget(self.video_search_input, 1)
+        search_layout.addWidget(self.search_all_btn)
+        search_layout.addWidget(self.search_playlist_btn)
+        search_layout.addWidget(self.search_button_placeholder)
+
+        # Hide search section until a playlist is selected (shown later by show_video_search_section())
+        self.show_video_search_section()
+
+        filter_layout.insertWidget(2, search_section, stretch=1)
 
         left_layout.addWidget(filter_section)
 
@@ -98,18 +129,17 @@ class MainWindow(QMainWindow):
         self.playlist_table.setAlternatingRowColors(True)
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.playlist_table.itemClicked.connect(self.on_playlist_selected)
-        #self.playlist_table.setItemSelectionBehavior(QTableWidget.SelectItems)
-        
+
         left_layout.addWidget(self.playlist_table)
 
         # Add buttons at bottom of left panel
         btn_section = QFrame()
         btn_layout = QHBoxLayout(btn_section)
-        
+
         self.open_btn = QPushButton("Open Playlist In Browser")
         self.open_btn.clicked.connect(self.open_selected_playlist)
         self.open_btn.setEnabled(False)  # Enable when playlist selected
-        
+
         btn_layout.addWidget(self.open_btn)
         btn_layout.addStretch()
 
@@ -120,26 +150,12 @@ class MainWindow(QMainWindow):
         # Right panel - Details viewer
         right_panel = QFrame()
         right_layout = QVBoxLayout(right_panel)
-        
+
         self.details_viewer = QTextBrowser()
         self.details_viewer.setMinimumHeight(400)
         self.details_viewer.setOpenExternalLinks(True)
-        
-        detail_buttons_layout = QHBoxLayout()
-        
-        # View Videos button
-        self.view_videos_btn = QPushButton("View Videos")
-        self.view_videos_btn.clicked.connect(self.show_playlist_videos)
-        self.view_videos_btn.setEnabled(False)
-        detail_buttons_layout.addWidget(self.view_videos_btn)
-        
-        self.view_videos_btn2 = QPushButton("View All Videos (Full List)")
-        self.view_videos_btn2.clicked.connect(self.show_all_videos_from_playlist)
-        self.view_videos_btn2.setEnabled(False)
-        detail_buttons_layout.addWidget(self.view_videos_btn2)
 
         right_layout.addWidget(self.details_viewer, 1)
-        right_layout.addLayout(detail_buttons_layout, 2)
         main_layout.addWidget(right_panel, stretch=3)
 
         # Apply font
@@ -148,13 +164,25 @@ class MainWindow(QMainWindow):
 
     def set_connection(self, conn, cursor):
         """Set the database connection for the GUI."""
+
         self.db_connection = conn
         self.cursor = cursor
         self.load_playlists()
 
+    def show_video_search_section(self):
+        """Show the video search section (initially hidden)."""
+        self.search_button_placeholder.hide()
+        self.search_playlist_btn.show()
+
+    def hide_video_search_section(self):
+        """Hide the video search section."""
+        self.search_button_placeholder.show()
+        self.search_playlist_btn.hide()
+
     @Slot(bool)
     def filter_playlists(self):
         """Filter playlists based on search text."""
+
         search_text = self.playlist_search.text().lower()
         if not search_text:
             self.refresh_playlists()
@@ -175,6 +203,7 @@ class MainWindow(QMainWindow):
 
     def refresh_playlists(self):
         """Refresh the playlists table."""
+
         # Clear existing data
         self.playlist_table.setRowCount(0)
 
@@ -199,7 +228,7 @@ class MainWindow(QMainWindow):
         for idx, row in enumerate(rows):
             p_id_item = QTableWidgetItem(row[0])
             title_item = QTableWidgetItem(row[1])
-            
+
             try:
                 created_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
@@ -221,6 +250,7 @@ class MainWindow(QMainWindow):
 
     def load_playlists(self):
         """Load and display all playlists."""
+
         query = "SELECT p_id, title, created, last_update, etag FROM playlist_data ORDER BY created DESC"
         self.cursor.execute(query)
         rows = self.cursor.fetchall()
@@ -241,11 +271,11 @@ class MainWindow(QMainWindow):
             self.playlist_table.setItem(idx, 4, QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-"))
 
         self.playlist_search.clear()
-        #self.playlist_table.setSelectionRow(self.playlist_table.rowCount() - 1)
 
     @Slot(int)
     def on_playlist_selected(self, item):
         """Handle playlist selection."""
+
         row = item.row()
         if row >= 0:
             p_id = self.playlist_table.item(row, 0).text()
@@ -253,8 +283,8 @@ class MainWindow(QMainWindow):
 
             # Enable action buttons
             self.open_btn.setEnabled(True)
-            self.view_videos_btn.setEnabled(True)
-            self.view_videos_btn2.setEnabled(True)
+            self.search_playlist_btn.setEnabled(True)
+            self.show_video_search_section()
 
             # Update details viewer with playlist info
             try:
@@ -277,19 +307,30 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Created: {created_dt}")
             self.details_viewer.append(f"Last Updated: {last_update_dt}")
 
+            # Save the scrollbar position to prevent scrolling on append
+            v_bar = self.details_viewer.verticalScrollBar()
+            v_bar_pos = v_bar.value()
+
+            # Show all videos from the selected playlist
+            self.show_all_videos_from_playlist()
+
+            # Restore scrollbar position
+            v_bar.setValue(v_bar_pos)
+
     @Slot()
     def open_selected_playlist(self):
         """Open the selected playlist in a browser."""
+
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
         p_id = self.playlist_table.item(row, 0).text()
         title = self.playlist_table.item(row, 1).text()
-        
+
         # Construct YouTube playlist URL
         url = f"https://www.youtube.com/playlist?list={p_id}"
-        
+
         # Open in default browser
         from urllib.parse import quote
         try:
@@ -301,55 +342,9 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"\nError opening playlist: {e}")
 
     @Slot()
-    def show_playlist_videos(self):
-        """Show videos from the selected playlist (paged view)."""
-        row = self.playlist_table.currentRow()
-        if row < 0 or row >= self.playlist_table.rowCount():
-            return
-
-        p_id = self.playlist_table.item(row, 0).text()
-        title = self.playlist_table.item(row, 1).text()
-
-        try:
-            self.cursor.execute(
-                """SELECT vid_id, position, added FROM playlist_items 
-                   WHERE p_id = ? ORDER BY position ASC LIMIT 50""",
-                (p_id,)
-            )
-            videos = self.cursor.fetchall()
-
-            if not videos:
-                self.details_viewer.append("No videos in this playlist.")
-                return
-
-            self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} - Videos ({len(videos)} items) ===\n")
-
-            for vid_id, position, added_timestamp in videos:
-                try:
-                    added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
-                except:
-                    added = str(added_timestamp)
-                
-                video_url = f"https://www.youtube.com/watch?v={vid_id}"
-                self.details_viewer.append(f"{position + 1}. {video_url}")
-            else:
-                # Load more button
-                next_page_token_query = f"""SELECT nextPageToken FROM playlistItemsList 
-                    WHERE playlistId = '{p_id}'"""
-                try:
-                    # Simple approach - just show count and let user see first 50
-                    self.details_viewer.append(f"\n--- First {len(videos)} of 50 videos shown ---")
-                    self.details_viewer.append("To see more, check the playlist in your browser or use export functionality.")
-                except:
-                    pass
-
-        except Exception as e:
-            self.details_viewer.append(f"Error loading videos: {e}")
-
-    @Slot()
     def show_all_videos_from_playlist(self):
         """Show all videos from the selected playlist."""
+
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
             return
@@ -373,19 +368,19 @@ class MainWindow(QMainWindow):
                 return
 
             self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} ===\n")
-            self.details_viewer.append(f"Total Videos: {len(videos)}\n")
-            self.details_viewer.append("-" * 50 + "\n")
+            self.details_viewer.append(f"<span>=== {title} ===\n</span>")
+            self.details_viewer.append(f"<span>Total Videos: {len(videos)}\n</span>")
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
-            for vid_id, title_text, status, position, added_timestamp in videos:
+            for title_text, status, position, vid_id, added_timestamp in videos:
                 try:
                     added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
                 except:
                     added = str(added_timestamp)
 
                 self.details_viewer.append(
-                    f"{position + 1}. {title_text} [{status}] - "
-                    f"https://www.youtube.com/watch?v={vid_id}"
+                    f"{position + 1}. [{status}] "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>"
                 )
 
             if len(videos) > 50:
@@ -397,21 +392,130 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.details_viewer.append(f"Error loading all videos: {e}")
 
+    @Slot()
+    def search_videos_in_playlist(self):
+        """Search for videos in the selected playlist using FTS5."""
+
+        row = self.playlist_table.currentRow()
+        if row < 0 or row >= self.playlist_table.rowCount():
+            return
+
+        p_id = self.playlist_table.item(row, 0).text()
+        title = self.playlist_table.item(row, 1).text()
+        query_text = self.video_search_input.text().strip()
+
+        if not query_text:
+            self.details_viewer.append("Please enter a search term.")
+            return
+
+        # Use the FTS5 search from archiver.py directly via cursor
+        try:
+            search_results = arch.search_in_playlist_fts(p_id, query_text)
+
+            if not search_results:
+                self.details_viewer.append(f"No results found for '{query_text}' in {title}.")
+                return
+
+            self.details_viewer.clear()
+            self.details_viewer.append(f"<span>=== Search Results in {title} ===\n</span>")
+            self.details_viewer.append(f"<span>Search Term: {query_text}\n</span>")
+            self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
+
+            for title_text, vid_id, rank in search_results:
+                self.details_viewer.append(
+                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                )
+
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
+            self.details_viewer.append(
+                f"<span>(Showing top 10 results. Click any video to open in browser.)\n</span>"
+            )
+
+        except Exception as e:
+            self.details_viewer.append(f"Error searching videos: {e}")
+
+    @Slot(str)
+    def on_video_search_text_changed(self, text=None):
+        """Handle video search text change with debouncing."""
+        
+        # Stop the timer if running
+        if self.search_timer:
+            self.search_timer.stop()
+
+        query_text = text if text is not None else self.video_search_input.text().strip()
+
+        # Don't search if empty or too short (at least 3 characters)
+        if not query_text or len(query_text) < 3:
+            return
+
+        # Start timer to debounce - wait 200ms after user stops typing
+        self.search_timer = QTimer(self)
+        self.search_timer.timeout.connect(lambda: None)
+        self.search_timer.singleShot(200, self._perform_video_search)
+        self.search_timer.start()
+
+    def _perform_video_search(self):
+        """Perform the actual video search using archiver FTS5 functions."""
+
+        # If no playlist is selected, search all videos
+        if self.playlist_table.currentRow() < 0:
+            self.search_videos_all_playlists()
+        else:
+            self.search_videos_in_playlist()
+
+    @Slot()
+    def search_videos_all_playlists(self):
+        """Search for videos across all playlists using FTS5."""
+
+        query_text = self.video_search_input.text().strip()
+
+        if not query_text:
+            self.details_viewer.append("Please enter a search term.")
+            return
+
+        # Use the FTS5 search from archiver.py directly via cursor
+        try:
+            search_results = arch.search_all_videos_fts(query_text)
+
+            if not search_results:
+                self.details_viewer.append(f"No results found for '{query_text}' in all videos.")
+                return
+
+            self.details_viewer.clear()
+            self.details_viewer.append(f"<span>=== Search Results (All Videos) ===\n</span>")
+            self.details_viewer.append(f"<span>Search Term: {query_text}\n</span>")
+            self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
+
+            for title_text, vid_id, rank in search_results:
+                self.details_viewer.append(
+                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                )
+
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
+            self.details_viewer.append(
+                f"<span>(Showing top 10 results. Click any video to open in browser.)\n</span>"
+            )
+
+        except Exception as e:
+            self.details_viewer.append(f"Error searching videos: {e}")
+
 
 def create_gui_application(conn, cursor):
     """
     Factory function to create the GUI application.
-    
+
     Args:
-        app: QApplication instance (created externally)
         conn: SQLite3 connection object
         cursor: SQLite3 cursor object
-    
+
     Returns:
         The PlaylistArchiverGUI instance (which contains the MainWindow)
     """
+
     app = QApplication([])
     gui = PlaylistArchiverGUI(app)
     gui.set_db_connection(conn, cursor)
-    return gui
 
+    return gui

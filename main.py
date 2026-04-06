@@ -102,12 +102,14 @@ if __name__ == '__main__':
         elif args.search:
             # Search all videos
             if len(args.search) == 1:
-                arch.search_all_videos_fts(args.search[0])
+                result = arch.search_all_videos_fts(args.search[0])
             # Search specific playlist
-            if len(args.search) == 2:
+            elif len(args.search) == 2:
                 playlist_id = args.search[0]
                 title = args.search[1]
-                arch.search_in_playlist_fts(playlist_id, title)
+                result = arch.search_in_playlist_fts(playlist_id, title)
+            
+            arch.print_search_results(result)
         # Importing/exporting
         elif args.export:
             arch.export_playlist(args.export)
