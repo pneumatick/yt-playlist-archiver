@@ -327,9 +327,9 @@ class MainWindow(QMainWindow):
                 return
 
             self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} ===\n")
-            self.details_viewer.append(f"Total Videos: {len(videos)}\n")
-            self.details_viewer.append("-" * 50 + "\n")
+            self.details_viewer.append(f"<span>=== {title} ===\n</span>")
+            self.details_viewer.append(f"<span>Total Videos: {len(videos)}\n</span>")
+            self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
             for title_text, status, position, vid_id, added_timestamp in videos:
                 try:
