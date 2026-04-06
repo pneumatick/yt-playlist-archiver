@@ -377,7 +377,7 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Total Videos: {len(videos)}\n")
             self.details_viewer.append("-" * 50 + "\n")
 
-            for vid_id, title_text, status, position, added_timestamp in videos:
+            for title_text, status, position, vid_id, added_timestamp in videos:
                 try:
                     added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
                 except:
