@@ -125,21 +125,7 @@ class MainWindow(QMainWindow):
         self.details_viewer.setMinimumHeight(400)
         self.details_viewer.setOpenExternalLinks(True)
         
-        detail_buttons_layout = QHBoxLayout()
-        
-        # View Videos button
-        self.view_videos_btn = QPushButton("View Videos")
-        self.view_videos_btn.clicked.connect(self.show_playlist_videos)
-        self.view_videos_btn.setEnabled(False)
-        detail_buttons_layout.addWidget(self.view_videos_btn)
-        
-        self.view_videos_btn2 = QPushButton("View All Videos (Full List)")
-        self.view_videos_btn2.clicked.connect(self.show_all_videos_from_playlist)
-        self.view_videos_btn2.setEnabled(False)
-        detail_buttons_layout.addWidget(self.view_videos_btn2)
-
         right_layout.addWidget(self.details_viewer, 1)
-        right_layout.addLayout(detail_buttons_layout, 2)
         main_layout.addWidget(right_panel, stretch=3)
 
         # Apply font
@@ -253,8 +239,6 @@ class MainWindow(QMainWindow):
 
             # Enable action buttons
             self.open_btn.setEnabled(True)
-            self.view_videos_btn.setEnabled(True)
-            self.view_videos_btn2.setEnabled(True)
 
             # Update details viewer with playlist info
             try:
@@ -302,53 +286,6 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"\nOpening {title} in your browser...")
         except Exception as e:
             self.details_viewer.append(f"\nError opening playlist: {e}")
-
-    @Slot()
-    def show_playlist_videos(self):
-
-        "NOTE: Probably shouldn't exist..."
-
-        """Show videos from the selected playlist (paged view)."""
-        row = self.playlist_table.currentRow()
-        if row < 0 or row >= self.playlist_table.rowCount():
-            return
-
-        p_id = self.playlist_table.item(row, 0).text()
-        title = self.playlist_table.item(row, 1).text()
-
-        try:
-            self.cursor.execute(
-                """SELECT vid_id, position, added FROM playlist_items 
-                   WHERE p_id = ? ORDER BY position ASC LIMIT 50""",
-                (p_id,)
-            )
-            videos = self.cursor.fetchall()
-
-            if not videos:
-                self.details_viewer.append("No videos in this playlist.")
-                return
-
-            self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} - Videos ({len(videos)} items) ===\n")
-
-            for vid_id, position, added_timestamp in videos:
-                try:
-                    added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
-                except:
-                    added = str(added_timestamp)
-                
-                video_url = f"https://www.youtube.com/watch?v={vid_id}"
-                self.details_viewer.append(f"{position + 1}. {video_url}")
-            else:
-                try:
-                    # Simple approach - just show count and let user see first 50
-                    self.details_viewer.append(f"\n--- First {len(videos)} of 50 videos shown ---")
-                    self.details_viewer.append("To see more, check the playlist in your browser or use export functionality.")
-                except:
-                    pass
-
-        except Exception as e:
-            self.details_viewer.append(f"Error loading videos: {e}")
 
     @Slot()
     def show_all_videos_from_playlist(self):
