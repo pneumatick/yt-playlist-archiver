@@ -445,17 +445,9 @@ def search_in_playlist_fts(playlist_id, query, n_results = 10):
         LIMIT ?
     ''', (query, playlist_id, n_results))
     result = cursor.fetchall()
+
+    return result
     
-    # Print best matches
-    if not result:
-        print("No close matches found...")
-    else:
-        vid_dict = {row[0]: "https://www.youtube.com/watch?v=" + row[1] for row in result}
-        for title, vid_id in vid_dict.items():
-            print(f"\n{title}: {vid_id}\n")
-
-    return
-
 # Search all videos using FTS5 (replaces difflib-based search)
 def search_all_videos_fts(query, n_results = 10):
     cursor.execute('''
@@ -467,6 +459,9 @@ def search_all_videos_fts(query, n_results = 10):
     ''', (query, n_results))
     result = cursor.fetchall()
     
+    return result
+
+def print_search_results(result):
     # Print best matches
     if not result:
         print("No close matches found...")
@@ -476,6 +471,7 @@ def search_all_videos_fts(query, n_results = 10):
             print(f"\n{title}: {vid_id}\n")
 
     return
+
 
 # Export a playlist as a set of CSV files (one for videos, other for metadata)
 def export_playlist(playlist_id):
