@@ -305,6 +305,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_playlist_videos(self):
+
+        "NOTE: Probably shouldn't exist..."
+
         """Show videos from the selected playlist (paged view)."""
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
@@ -384,8 +387,8 @@ class MainWindow(QMainWindow):
                     added = str(added_timestamp)
 
                 self.details_viewer.append(
-                    f"{position + 1}. {title_text} [{status}] - "
-                    f"https://www.youtube.com/watch?v={vid_id}"
+                    f"{position + 1}. [{status}] "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>"
                 )
 
             if len(videos) > 50:
