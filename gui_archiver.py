@@ -6,16 +6,15 @@ A PySide6-based graphical interface for browsing and viewing archived YouTube pl
 
 import sys
 from datetime import datetime
-from typing import List, Optional
 
 try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QSplitter, QTextBrowser, QHeaderView, QFrame, QLabel
+        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel
     )
-    from PySide6.QtCore import Qt, Signal, Slot
-    from PySide6.QtGui import QFont, QIcon
+    from PySide6.QtCore import Qt, Slot
+    from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
@@ -48,6 +47,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """Initialize the user interface."""
+
         self.setWindowTitle("YouTube Playlist Archiver")
         self.setGeometry(100, 100, 1200, 800)
 
@@ -134,6 +134,7 @@ class MainWindow(QMainWindow):
 
     def set_connection(self, conn, cursor):
         """Set the database connection for the GUI."""
+
         self.db_connection = conn
         self.cursor = cursor
         self.load_playlists()
@@ -141,6 +142,7 @@ class MainWindow(QMainWindow):
     @Slot(bool)
     def filter_playlists(self):
         """Filter playlists based on search text."""
+
         search_text = self.playlist_search.text().lower()
         if not search_text:
             self.refresh_playlists()
@@ -161,6 +163,7 @@ class MainWindow(QMainWindow):
 
     def refresh_playlists(self):
         """Refresh the playlists table."""
+
         # Clear existing data
         self.playlist_table.setRowCount(0)
 
@@ -207,6 +210,7 @@ class MainWindow(QMainWindow):
 
     def load_playlists(self):
         """Load and display all playlists."""
+
         query = "SELECT p_id, title, created, last_update, etag FROM playlist_data ORDER BY created DESC"
         self.cursor.execute(query)
         rows = self.cursor.fetchall()
@@ -232,6 +236,7 @@ class MainWindow(QMainWindow):
     @Slot(int)
     def on_playlist_selected(self, item):
         """Handle playlist selection."""
+
         row = item.row()
         if row >= 0:
             p_id = self.playlist_table.item(row, 0).text()
@@ -298,6 +303,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def show_all_videos_from_playlist(self):
         """Show all videos from the selected playlist."""
+
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
             return
@@ -351,15 +357,16 @@ def create_gui_application(conn, cursor):
     Factory function to create the GUI application.
     
     Args:
-        app: QApplication instance (created externally)
         conn: SQLite3 connection object
         cursor: SQLite3 cursor object
     
     Returns:
         The PlaylistArchiverGUI instance (which contains the MainWindow)
     """
+
     app = QApplication([])
     gui = PlaylistArchiverGUI(app)
     gui.set_db_connection(conn, cursor)
+
     return gui
 
