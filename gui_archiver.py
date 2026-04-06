@@ -261,12 +261,20 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Created: {created_dt}")
             self.details_viewer.append(f"Last Updated: {last_update_dt}")
 
+            # Save the scrollbar position to prevent scrolling on append
+            v_bar = self.details_viewer.verticalScrollBar()
+            v_bar_pos = v_bar.value()
+
             # Show all videos from the selected playlist
             self.show_all_videos_from_playlist()
+
+            # Restore scrollbar position
+            v_bar.setValue(v_bar_pos)
 
     @Slot()
     def open_selected_playlist(self):
         """Open the selected playlist in a browser."""
+
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
             return
