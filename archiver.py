@@ -27,6 +27,7 @@ API_VERSION = 'v3'
 PLAYLIST_ITEMS_COLS = ['p_id', 'vid_id', 'position', 'added']
 VIDEOS_COLS = ['vid_id', 'title', 'status']
 
+# NOTE: Consider renaming to InfoManager (more accurate and descriptive)
 class Archiver:
     _instance = None
 
@@ -615,6 +616,15 @@ class Archiver:
         self._conn.commit()
 
         return
+    
+    # Perform the specified query and return the result directly
+    def handle_query(self, query, params = None):
+        if params:
+            self._cursor.execute(query, params)
+        else:
+            self._cursor.execute(query)
+        
+        return self._cursor.fetchall()
 
     # Instantiate or load the database
     def instantiate_db(self):

@@ -154,11 +154,7 @@ class MainWindow(QMainWindow):
         font = QFont("Segoe UI", 10)
         self.setFont(font)
 
-    def set_connection(self, conn, cursor):
-        """Set the database connection for the GUI."""
-
-        self.db_connection = conn
-        self.cursor = cursor
+        # Load playlists
         self.load_playlists()
 
     def show_video_search_section(self):
@@ -214,8 +210,7 @@ class MainWindow(QMainWindow):
             ORDER BY created {}
         """.format("DESC" if order == Qt.DescendingOrder else "ASC")
 
-        self.cursor.execute(query)
-        rows = self.cursor.fetchall()
+        rows = arch.handle_query(query)
 
         for idx, row in enumerate(rows):
             p_id_item = QTableWidgetItem(row[0])
@@ -244,8 +239,7 @@ class MainWindow(QMainWindow):
         """Load and display all playlists."""
 
         query = "SELECT p_id, title, created, last_update, etag FROM playlist_data ORDER BY created DESC"
-        self.cursor.execute(query)
-        rows = self.cursor.fetchall()
+        rows = arch.handle_query(query)
 
         for idx, row in enumerate(rows):
             try:
@@ -352,8 +346,7 @@ class MainWindow(QMainWindow):
                 WHERE pi.p_id = ?
                 ORDER BY pi.position ASC
             """
-            self.cursor.execute(query, (p_id,))
-            videos = self.cursor.fetchall()
+            videos = arch.handle_query(query, (p_id,))
 
             if not videos:
                 self.details_viewer.append("No videos found in this playlist.")
