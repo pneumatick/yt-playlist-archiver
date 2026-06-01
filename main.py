@@ -163,14 +163,9 @@ if __name__ == '__main__':
             gui = create_gui_application(arch.conn, arch.cursor)
             window = gui.window
             gui.window.show()
-            gui.app.exec()
-            
-            # Only close db when app is closed
-            @gui.app.lastWindowClosed.connect
-            def on_closed():
-                print("GUI closing...")
-            quit()
-
+            # NOTE: Replace lambda with function for extra terminating behavior
+            gui.app.lastWindowClosed.connect(lambda: print("GUI closing..."))
+            gui.app.exec() 
 
     except arch.HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
@@ -180,5 +175,6 @@ if __name__ == '__main__':
         traceback.print_exc()
 
     # Close database connection
+    print("Closing database...")
     arch.conn.close()
 
