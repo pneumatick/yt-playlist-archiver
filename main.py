@@ -2,8 +2,7 @@ import argparse
 import traceback
 
 import archiver as arch
-import sys
-from gui_archiver import create_gui_application, PlaylistArchiverGUI, MainWindow
+from gui_archiver import create_gui_application
 
 if __name__ == '__main__':
 
