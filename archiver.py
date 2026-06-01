@@ -28,6 +28,8 @@ PLAYLIST_ITEMS_COLS = ['p_id', 'vid_id', 'position', 'added']
 VIDEOS_COLS = ['vid_id', 'title', 'status']
 
 class Archiver:
+    _instance = None
+
     # Global YouTube API variables
     _youtube = None
 
@@ -37,9 +39,20 @@ class Archiver:
 
     def __init__(self):
         self.instantiate_db()
+    
+    # Ensure class functions as a singleton
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __del__(self):
+        # Close the database
+        print("Closing database...")
+        self._conn.close()
 
     # Authorize the request and store authorization credentials. (OAuth 2.0)
-    def get_authenticated_service():
+    def get_authenticated_service(_self):
         credentials = None
 
         # Load token if it exists
@@ -212,7 +225,7 @@ class Archiver:
         return
 
     # Return a list of playlist IDs from a file
-    def get_playlist_ids(path):
+    def get_playlist_ids(_self, path):
         ids = []
 
         try:
@@ -468,7 +481,7 @@ class Archiver:
         
         return result
 
-    def print_search_results(result):
+    def print_search_results(_self, result):
         # Print best matches
         if not result:
             print("No close matches found...")

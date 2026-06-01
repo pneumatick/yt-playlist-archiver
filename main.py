@@ -1,7 +1,7 @@
 import argparse
 import traceback
 
-import archiver as arch
+import archiver
 from gui_archiver import create_gui_application
 
 if __name__ == '__main__':
@@ -81,8 +81,8 @@ if __name__ == '__main__':
         # Get args
         args = parser.parse_args()
 
-        # Load or create database
-        arch.instantiate_db()
+        # Instantiate archiver
+        arch = archiver.Archiver()
 
         # Execute functions according to args
 
@@ -129,7 +129,7 @@ if __name__ == '__main__':
         youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=key)
         """
         # OAuth 2.0
-        arch.youtube = arch.get_authenticated_service()
+        arch.authenticate()
 
         # Single playlist
         if args.id:
@@ -159,21 +159,16 @@ if __name__ == '__main__':
         # GUI
         elif args.gui:
             # Create QApplication and launch GUI
-            gui = create_gui_application(arch.conn, arch.cursor)
+            gui = create_gui_application()
             window = gui.window
             gui.window.show()
             # NOTE: Replace lambda with function for extra terminating behavior
             gui.app.lastWindowClosed.connect(lambda: print("GUI closing..."))
             gui.app.exec() 
 
-    except arch.HttpError as e:
+    except archiver.HttpError as e:
         print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
         traceback.print_exc()
     except Exception as e:
         print(f"An error has occurred: {e}")
         traceback.print_exc()
-
-    # Close database connection
-    print("Closing database...")
-    arch.conn.close()
-

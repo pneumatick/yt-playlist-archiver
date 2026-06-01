@@ -19,7 +19,8 @@ except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
 
-import archiver as arch
+import archiver
+arch = archiver.Archiver()
 
 class PlaylistArchiverGUI:
     """Main GUI class for the YouTube Playlist Archiver."""
@@ -28,15 +29,6 @@ class PlaylistArchiverGUI:
         """Initialize with a QApplication instance."""
         self.app = app  # Store reference to QApplication
         self.window = MainWindow(app)  # Pass app to window
-        self.db_connection = None  # Will be passed from main.py
-        self.cursor = None
-
-    def set_db_connection(self, conn, cursor):
-        """Set the database connection and cursor."""
-        self.db_connection = conn
-        self.cursor = cursor
-        self.window.set_connection(conn, cursor)
-
 
 class MainWindow(QMainWindow):
     """Main window for the playlist archiver GUI."""
@@ -502,7 +494,7 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Error searching videos: {e}")
 
 
-def create_gui_application(conn, cursor):
+def create_gui_application():
     """
     Factory function to create the GUI application.
 
@@ -516,6 +508,5 @@ def create_gui_application(conn, cursor):
 
     app = QApplication([])
     gui = PlaylistArchiverGUI(app)
-    gui.set_db_connection(conn, cursor)
 
     return gui
