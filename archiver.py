@@ -39,7 +39,7 @@ class Archiver:
     _cursor = None
 
     def __init__(self):
-        self.instantiate_db()
+        self._instantiate_db()
     
     # Ensure class functions as a singleton
     def __new__(cls):
@@ -53,7 +53,7 @@ class Archiver:
         self._conn.close()
 
     # Authorize the request and store authorization credentials. (OAuth 2.0)
-    def get_authenticated_service(_self):
+    def _get_authenticated_service(_self):
         credentials = None
 
         # Load token if it exists
@@ -75,7 +75,7 @@ class Archiver:
         return build(API_SERVICE_NAME, API_VERSION, credentials = credentials)
     
     def authenticate(self):
-        self._youtube = self.get_authenticated_service()
+        self._youtube = self._get_authenticated_service()
 
     '''
     # Get the API key from the specified text file
@@ -90,7 +90,7 @@ class Archiver:
     '''
 
     # Retrieve n items (50 max) from a playlist
-    def get_playlist_page(self, playlist_id, n_items = 50, next_page = None):
+    def _get_playlist_page(self, playlist_id, n_items = 50, next_page = None):
         if n_items < 1 or n_items > 50:
             print(f"Cannot retrieve {n_items} list items (range 1 - 50)...")
             return None
@@ -121,7 +121,7 @@ class Archiver:
             position = item['snippet']['position']
             print(f"{position}: Video Title: {video_title}, Video ID: {video_id}")
 
-    def archive_playlist_response(self, playlist_id, response):
+    def _archive_playlist_response(self, playlist_id, response):
         for item in response['items']:
             video_title = item['snippet']['title']
             video_id = item['contentDetails']['videoId']
@@ -155,7 +155,7 @@ class Archiver:
     def get_entire_playlist(self, playlist_id, behavior):
         end_reached = False
 
-        response = self.get_playlist_page(playlist_id)
+        response = self._get_playlist_page(playlist_id)
         while not end_reached:
             if not response:
                 print("No response received...")
@@ -165,7 +165,7 @@ class Archiver:
             if behavior == "print":
                 self.print_playlist_response(response)
             elif behavior == "archive":
-                self.archive_playlist_response(playlist_id, response)
+                self._archive_playlist_response(playlist_id, response)
             else:
                 print(f"Unknown behavior specified: {behavior}")
                 return
@@ -173,7 +173,7 @@ class Archiver:
             # Get the next page if possible, otherwise end loop
             if "nextPageToken" in response:
                 nextPageToken = response["nextPageToken"]
-                response = self.get_playlist_page(
+                response = self._get_playlist_page(
                     playlist_id, 
                     next_page=nextPageToken
                 )
@@ -188,14 +188,14 @@ class Archiver:
         if n_items < 0:
             return
         elif n_items <= 50:
-            response = self.get_playlist_page(playlist_id, n_items=n_items)
+            response = self._get_playlist_page(playlist_id, n_items=n_items)
             self.print_playlist_response(response)
             return
 
         # Getting more than 50 items
         end_reached = False
 
-        response = self.get_playlist_page(playlist_id)
+        response = self._get_playlist_page(playlist_id)
         n_items -= 50
         while not end_reached:
             if not response:
@@ -208,7 +208,7 @@ class Archiver:
             if "nextPageToken" in response and n_items > 0:
                 nextPageToken = response["nextPageToken"]
                 # Get max items (50) at a time while n > 50
-                response = self.get_playlist_page(
+                response = self._get_playlist_page(
                     self._youtube, 
                     playlist_id,
                     n_items=50 if n_items >= 50 else n_items,
@@ -226,7 +226,7 @@ class Archiver:
         return
 
     # Return a list of playlist IDs from a file
-    def get_playlist_ids(_self, path):
+    def _get_playlist_ids(_self, path):
         ids = []
 
         try:
@@ -243,7 +243,7 @@ class Archiver:
     def retrieve_items_from_playlists(self, path, n_items=None):
         playlist_ids = []
 
-        playlist_ids = self.get_playlist_ids(path)
+        playlist_ids = self._get_playlist_ids(path)
             
         for i, p_id in enumerate(playlist_ids):
             if not n_items:
@@ -266,7 +266,7 @@ class Archiver:
 
         return
 
-    def get_etag(self, playlist_id) -> str:
+    def _get_etag(self, playlist_id) -> str:
         request = self._youtube.playlistItems().list(
             part="contentDetails",
             playlistId=playlist_id,
@@ -279,7 +279,7 @@ class Archiver:
     def check_playlist_for_changes(self, playlist_id) -> tuple[bool, str]:
         try:
             # Get the playlist's etag
-            etag = self.get_etag(playlist_id)
+            etag = self._get_etag(playlist_id)
 
             # Compare received etag to stored
             self._cursor.execute(
@@ -298,7 +298,7 @@ class Archiver:
             print(f"Error when checking playlist for changes: {e}")
 
     # Get relevant playlist information
-    def get_playlist_info(self, playlist_id):
+    def _get_playlist_info(self, playlist_id):
         request = self._youtube.playlists().list(
             part='snippet',
             id=playlist_id
@@ -321,7 +321,7 @@ class Archiver:
 
             if changed and etag:
                 # Update existing playlist
-                self.peek_playlist_top(playlist_id)
+                self._peek_playlist_top(playlist_id)
                 now = datetime.datetime.now()
                 self._cursor.execute('''
                     UPDATE playlist_data 
@@ -337,9 +337,9 @@ class Archiver:
         else:
             # Archive new playlist
             self.get_entire_playlist(playlist_id, "archive")
-            playlist_title = self.get_playlist_info(playlist_id)
+            playlist_title = self._get_playlist_info(playlist_id)
             now = datetime.datetime.now()
-            etag = self.get_etag(playlist_id)
+            etag = self._get_etag(playlist_id)
             self._cursor.execute('''
                 INSERT INTO playlist_data 
                 (p_id, title, created, last_update, etag) 
@@ -354,11 +354,11 @@ class Archiver:
             print("Playlist successfully archived")
 
     # Update playlist by peeking from the top
-    def peek_playlist_top(self, playlist_id): 
+    def _peek_playlist_top(self, playlist_id): 
         new_videos = { "items": [] } 
         more = True 
     
-        response = self.get_playlist_page(playlist_id) 
+        response = self._get_playlist_page(playlist_id) 
     
         # Check if video is in playlist or not and handle accordingly 
         while more: 
@@ -384,7 +384,7 @@ class Archiver:
             # Get the next page if necessary 
             if more and "nextPageToken" in response: 
                 token = response["nextPageToken"] 
-                response = self.get_playlist_page(playlist_id, next_page = token) 
+                response = self._get_playlist_page(playlist_id, next_page = token) 
     
         
         # Add the new videos and increment positions of old videos 
@@ -396,7 +396,7 @@ class Archiver:
                 ''',
                 (len(new_videos["items"]), playlist_id)
             )
-            self.archive_playlist_response(playlist_id, new_videos) 
+            self._archive_playlist_response(playlist_id, new_videos) 
     
         return
 
@@ -492,7 +492,6 @@ class Archiver:
                 print(f"\n{title}: {vid_id}\n")
 
         return
-
 
     # Export a playlist as a set of CSV files (one for videos, other for metadata)
     def export_playlist(self, playlist_id):
@@ -627,7 +626,7 @@ class Archiver:
         return self._cursor.fetchall()
 
     # Instantiate or load the database
-    def instantiate_db(self):
+    def _instantiate_db(self):
         self._conn = sqlite3.connect('playlists.db')
         self._cursor = self._conn.cursor()
 

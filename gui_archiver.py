@@ -19,6 +19,8 @@ except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
 
+# NOTE: This should probably be a field that main.py passes PlaylistArchiverGUI, 
+# which passes it to MainWindow
 import archiver
 arch = archiver.Archiver()
 
