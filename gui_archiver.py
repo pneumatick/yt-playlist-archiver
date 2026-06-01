@@ -19,7 +19,10 @@ except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
     sys.exit(1)
 
-import archiver as arch
+# NOTE: This should probably be a field that main.py passes PlaylistArchiverGUI, 
+# which passes it to MainWindow
+import archiver
+arch = archiver.Archiver()
 
 class PlaylistArchiverGUI:
     """Main GUI class for the YouTube Playlist Archiver."""
@@ -28,15 +31,6 @@ class PlaylistArchiverGUI:
         """Initialize with a QApplication instance."""
         self.app = app  # Store reference to QApplication
         self.window = MainWindow(app)  # Pass app to window
-        self.db_connection = None  # Will be passed from main.py
-        self.cursor = None
-
-    def set_db_connection(self, conn, cursor):
-        """Set the database connection and cursor."""
-        self.db_connection = conn
-        self.cursor = cursor
-        self.window.set_connection(conn, cursor)
-
 
 class MainWindow(QMainWindow):
     """Main window for the playlist archiver GUI."""
@@ -162,11 +156,7 @@ class MainWindow(QMainWindow):
         font = QFont("Segoe UI", 10)
         self.setFont(font)
 
-    def set_connection(self, conn, cursor):
-        """Set the database connection for the GUI."""
-
-        self.db_connection = conn
-        self.cursor = cursor
+        # Load playlists
         self.load_playlists()
 
     def show_video_search_section(self):
@@ -222,8 +212,7 @@ class MainWindow(QMainWindow):
             ORDER BY created {}
         """.format("DESC" if order == Qt.DescendingOrder else "ASC")
 
-        self.cursor.execute(query)
-        rows = self.cursor.fetchall()
+        rows = arch.handle_query(query)
 
         for idx, row in enumerate(rows):
             p_id_item = QTableWidgetItem(row[0])
@@ -252,8 +241,7 @@ class MainWindow(QMainWindow):
         """Load and display all playlists."""
 
         query = "SELECT p_id, title, created, last_update, etag FROM playlist_data ORDER BY created DESC"
-        self.cursor.execute(query)
-        rows = self.cursor.fetchall()
+        rows = arch.handle_query(query)
 
         for idx, row in enumerate(rows):
             try:
@@ -360,8 +348,7 @@ class MainWindow(QMainWindow):
                 WHERE pi.p_id = ?
                 ORDER BY pi.position ASC
             """
-            self.cursor.execute(query, (p_id,))
-            videos = self.cursor.fetchall()
+            videos = arch.handle_query(query, (p_id,))
 
             if not videos:
                 self.details_viewer.append("No videos found in this playlist.")
@@ -502,7 +489,7 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"Error searching videos: {e}")
 
 
-def create_gui_application(conn, cursor):
+def create_gui_application():
     """
     Factory function to create the GUI application.
 
@@ -516,6 +503,5 @@ def create_gui_application(conn, cursor):
 
     app = QApplication([])
     gui = PlaylistArchiverGUI(app)
-    gui.set_db_connection(conn, cursor)
 
     return gui
