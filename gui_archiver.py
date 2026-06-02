@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
 
         # Add refresh button
         self.refresh_btn = QPushButton("Refresh")
-        self.refresh_btn.clicked.connect(self.load_playlists)
+        self.refresh_btn.clicked.connect(self.refresh_playlists)
         playlist_search_layout.addStretch()
         playlist_search_layout.addWidget(self.refresh_btn)
 
@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         self.playlist_table = QTableWidget()
         self.playlist_table.setColumnCount(5)
         self.playlist_table.setHorizontalHeaderLabels([
-            "Playlist ID", "Title", "Created", "Last Updated", "Etag"
+            "Title", "Last Updated", "Created", "Playlist ID", "Etag"
         ])
         self.playlist_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.playlist_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -188,7 +188,6 @@ class MainWindow(QMainWindow):
         # Filter the table items
         for row in range(self.playlist_table.rowCount()):
             item_text = (
-                str(self.playlist_table.item(row, 1).text()) + " " +
                 str(self.playlist_table.item(row, 0).text())
             ).lower()
             is_visible = search_text in item_text
@@ -201,69 +200,64 @@ class MainWindow(QMainWindow):
     def refresh_playlists(self):
         """Refresh the playlists table."""
 
-        # Clear existing data
+        # Clear existing data and temporarily disable sorting
         self.playlist_table.setRowCount(0)
-
-        # Apply sorting
-        sort_order = {
-            "Newest First": Qt.DescendingOrder,
-            "Oldest First": Qt.AscendingOrder,
-            "Alphabetical": Qt.AscendingOrder  # Sort by title
-        }
-        sort_text = self.sort_combo.currentText()
-        order = sort_order.get(sort_text, Qt.AscendingOrder)
+        self.playlist_table.setSortingEnabled(False)
 
         # Get playlists from database
         query = """
-            SELECT p_id, title, created, last_update, etag 
+            SELECT title, last_update, created, p_id, etag 
             FROM playlist_data 
-            ORDER BY last_update {}
-        """.format("DESC" if order == Qt.DescendingOrder else "ASC")
+        """
 
         rows = arch.handle_query(query)
 
         for idx, row in enumerate(rows):
-            p_id_item = QTableWidgetItem(row[0])
-            title_item = QTableWidgetItem(row[1])
+            title_item = QTableWidgetItem(row[0])
 
             try:
-                created_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
+                created_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                created_item = QTableWidgetItem(str(row[2]))
+                created_item = QTableWidgetItem(str(row[1]))
 
             try:
-                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[3]).strftime("%Y-%m-%d %H:%M:%S"))
+                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                last_update_item = QTableWidgetItem(str(row[3]))
+                last_update_item = QTableWidgetItem(str(row[2]))
 
+            p_id_item = QTableWidgetItem(row[3])
             etag_item = QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-")
 
             self.playlist_table.insertRow(self.playlist_table.rowCount())
-            self.playlist_table.setItem(idx, 0, p_id_item)
-            self.playlist_table.setItem(idx, 1, title_item)
+            self.playlist_table.setItem(idx, 0, title_item)
+            self.playlist_table.setItem(idx, 1, last_update_item)
             self.playlist_table.setItem(idx, 2, created_item)
-            self.playlist_table.setItem(idx, 3, last_update_item)
+            self.playlist_table.setItem(idx, 3, p_id_item)
             self.playlist_table.setItem(idx, 4, etag_item)
+        
+        # Enable sorting
+        self.playlist_table.setSortingEnabled(True)
 
     def load_playlists(self):
         """Load and display all playlists."""
 
-        query = "SELECT p_id, title, created, last_update, etag FROM playlist_data ORDER BY created DESC"
+        query = "SELECT title, last_update, created, p_id, etag FROM playlist_data ORDER BY created DESC"
         rows = arch.handle_query(query)
 
+        self.playlist_table.setRowCount(0)
         for idx, row in enumerate(rows):
             try:
+                last_update = datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S")
                 created = datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S")
-                last_update = datetime.fromtimestamp(row[3]).strftime("%Y-%m-%d %H:%M:%S")
             except:
+                last_update = str(row[1])
                 created = str(row[2])
-                last_update = str(row[3])
 
             self.playlist_table.insertRow(self.playlist_table.rowCount())
             self.playlist_table.setItem(idx, 0, QTableWidgetItem(row[0]))
-            self.playlist_table.setItem(idx, 1, QTableWidgetItem(row[1]))
+            self.playlist_table.setItem(idx, 1, QTableWidgetItem(last_update))
             self.playlist_table.setItem(idx, 2, QTableWidgetItem(created))
-            self.playlist_table.setItem(idx, 3, QTableWidgetItem(last_update))
+            self.playlist_table.setItem(idx, 3, QTableWidgetItem(row[3]))
             self.playlist_table.setItem(idx, 4, QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-"))
 
         self.playlist_search.clear()
@@ -274,8 +268,8 @@ class MainWindow(QMainWindow):
 
         row = item.row()
         if row >= 0:
-            p_id = self.playlist_table.item(row, 0).text()
-            title = self.playlist_table.item(row, 1).text()
+            title = self.playlist_table.item(row, 0).text()
+            p_id = self.playlist_table.item(row, 4).text()
 
             # Enable action buttons
             self.open_btn.setEnabled(True)
@@ -284,18 +278,18 @@ class MainWindow(QMainWindow):
 
             # Update details viewer with playlist info
             try:
+                last_update_dt = datetime.fromtimestamp(
+                    int(self.playlist_table.item(row, 1).text())
+                ).strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                last_update_dt = self.playlist_table.item(row, 1).text()
+
+            try:
                 created_dt = datetime.fromtimestamp(
                     int(self.playlist_table.item(row, 2).text())
                 ).strftime("%Y-%m-%d %H:%M:%S")
             except:
                 created_dt = self.playlist_table.item(row, 2).text()
-
-            try:
-                last_update_dt = datetime.fromtimestamp(
-                    int(self.playlist_table.item(row, 3).text())
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                last_update_dt = self.playlist_table.item(row, 3).text()
 
             self.details_viewer.clear()
             self.details_viewer.append(f"=== {title} ===")
@@ -321,8 +315,8 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
-        p_id = self.playlist_table.item(row, 0).text()
-        title = self.playlist_table.item(row, 1).text()
+        p_id = self.playlist_table.item(row, 3).text()
+        title = self.playlist_table.item(row, 0).text()
 
         # Construct YouTube playlist URL
         url = f"https://www.youtube.com/playlist?list={p_id}"
@@ -345,8 +339,8 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
-        p_id = self.playlist_table.item(row, 0).text()
-        title = self.playlist_table.item(row, 1).text()
+        p_id = self.playlist_table.item(row, 3).text()
+        title = self.playlist_table.item(row, 0).text()
 
         try:
             query = """
@@ -395,8 +389,8 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
-        p_id = self.playlist_table.item(row, 0).text()
-        title = self.playlist_table.item(row, 1).text()
+        p_id = self.playlist_table.item(row, 3).text()
+        title = self.playlist_table.item(row, 0).text()
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
