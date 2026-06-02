@@ -11,7 +11,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel
+        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
     )
     from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
@@ -51,14 +51,16 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        playlist_splitter = QSplitter()
 
         # Left panel - Playlist list
         left_panel = QFrame()
-        left_layout = QVBoxLayout(left_panel)
         left_panel.setMinimumWidth(400)
+        left_layout = QVBoxLayout(left_panel)
 
         # Playlist search and filter section
         filter_section = QFrame()
+        filter_section.setMaximumHeight(100)
         filter_layout = QHBoxLayout(filter_section)
 
         self.playlist_search = QLineEdit()
@@ -107,9 +109,10 @@ class MainWindow(QMainWindow):
         # Hide search section until a playlist is selected (shown later by show_video_search_section())
         self.show_video_search_section()
 
-        filter_layout.insertWidget(2, search_section, stretch=1)
+        filter_layout.insertWidget(2, search_section, stretch=0)
 
-        left_layout.addWidget(filter_section)
+        # Add playlist search and filter section to the main layout
+        main_layout.addWidget(filter_section)
 
         # Playlist table
         self.playlist_table = QTableWidget()
@@ -139,7 +142,7 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(btn_section)
 
-        main_layout.addWidget(left_panel, stretch=1)
+        playlist_splitter.addWidget(left_panel)
 
         # Right panel - Details viewer
         right_panel = QFrame()
@@ -150,7 +153,10 @@ class MainWindow(QMainWindow):
         self.details_viewer.setOpenExternalLinks(True)
 
         right_layout.addWidget(self.details_viewer, 1)
-        main_layout.addWidget(right_panel, stretch=3)
+        playlist_splitter.addWidget(right_panel)
+
+        # Add splitter to main layout
+        main_layout.addWidget(playlist_splitter)
 
         # Apply font
         font = QFont("Segoe UI", 10)
