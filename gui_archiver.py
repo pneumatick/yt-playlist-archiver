@@ -103,14 +103,8 @@ class MainWindow(QMainWindow):
         self.playlist_search.setPlaceholderText("Search playlists...")
         self.playlist_search.textChanged.connect(self.filter_playlists)
 
-        self.sort_combo = QComboBox()
-        self.sort_combo.addItems(["Newest First", "Oldest First", "Alphabetical"])
-        self.sort_combo.currentIndexChanged.connect(self.refresh_playlists)
-
         playlist_search_layout.addWidget(QLabel("Search:"))
         playlist_search_layout.addWidget(self.playlist_search, 1)
-        playlist_search_layout.addWidget(QLabel("Sort by:"))
-        playlist_search_layout.addWidget(self.sort_combo)
 
         # Add refresh button
         self.refresh_btn = QPushButton("Refresh")
@@ -132,6 +126,7 @@ class MainWindow(QMainWindow):
         self.playlist_table.setAlternatingRowColors(True)
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.playlist_table.itemClicked.connect(self.on_playlist_selected)
+        self.playlist_table.setSortingEnabled(True)
 
         left_layout.addWidget(self.playlist_table)
 
@@ -215,13 +210,14 @@ class MainWindow(QMainWindow):
             "Oldest First": Qt.AscendingOrder,
             "Alphabetical": Qt.AscendingOrder  # Sort by title
         }
-        order = sort_order.get(self.sort_combo.currentText(), Qt.AscendingOrder)
+        sort_text = self.sort_combo.currentText()
+        order = sort_order.get(sort_text, Qt.AscendingOrder)
 
         # Get playlists from database
         query = """
             SELECT p_id, title, created, last_update, etag 
             FROM playlist_data 
-            ORDER BY created {}
+            ORDER BY last_update {}
         """.format("DESC" if order == Qt.DescendingOrder else "ASC")
 
         rows = arch.handle_query(query)
