@@ -63,25 +63,6 @@ class MainWindow(QMainWindow):
         filter_section.setMaximumHeight(100)
         filter_layout = QHBoxLayout(filter_section)
 
-        self.playlist_search = QLineEdit()
-        self.playlist_search.setPlaceholderText("Search playlists...")
-        self.playlist_search.textChanged.connect(self.filter_playlists)
-
-        self.sort_combo = QComboBox()
-        self.sort_combo.addItems(["Newest First", "Oldest First", "Alphabetical"])
-        self.sort_combo.currentIndexChanged.connect(self.refresh_playlists)
-
-        filter_layout.addWidget(QLabel("Search:"))
-        filter_layout.addWidget(self.playlist_search, 1)
-        filter_layout.addWidget(QLabel("Sort by:"))
-        filter_layout.addWidget(self.sort_combo)
-
-        # Add refresh button
-        self.refresh_btn = QPushButton("Refresh")
-        self.refresh_btn.clicked.connect(self.load_playlists)
-        filter_layout.addStretch()
-        filter_layout.addWidget(self.refresh_btn)
-
         # Video search section for searching within playlist or all videos
         search_section = QFrame()
         search_layout = QHBoxLayout(search_section)
@@ -109,10 +90,35 @@ class MainWindow(QMainWindow):
         # Hide search section until a playlist is selected (shown later by show_video_search_section())
         self.show_video_search_section()
 
-        filter_layout.insertWidget(2, search_section, stretch=0)
+        filter_layout.insertWidget(0, search_section, stretch=0)
 
-        # Add playlist search and filter section to the main layout
+        # Add video search section to the main layout
         main_layout.addWidget(filter_section)
+
+        # Add playlist searching and sorting to the top of the left panel
+        playlist_search_frame = QFrame()
+        playlist_search_layout = QHBoxLayout(playlist_search_frame)
+
+        self.playlist_search = QLineEdit()
+        self.playlist_search.setPlaceholderText("Search playlists...")
+        self.playlist_search.textChanged.connect(self.filter_playlists)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["Newest First", "Oldest First", "Alphabetical"])
+        self.sort_combo.currentIndexChanged.connect(self.refresh_playlists)
+
+        playlist_search_layout.addWidget(QLabel("Search:"))
+        playlist_search_layout.addWidget(self.playlist_search, 1)
+        playlist_search_layout.addWidget(QLabel("Sort by:"))
+        playlist_search_layout.addWidget(self.sort_combo)
+
+        # Add refresh button
+        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.clicked.connect(self.load_playlists)
+        playlist_search_layout.addStretch()
+        playlist_search_layout.addWidget(self.refresh_btn)
+
+        left_layout.addWidget(playlist_search_frame)
 
         # Playlist table
         self.playlist_table = QTableWidget()
