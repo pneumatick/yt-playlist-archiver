@@ -216,14 +216,14 @@ class MainWindow(QMainWindow):
             title_item = QTableWidgetItem(row[0])
 
             try:
-                created_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
+                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                created_item = QTableWidgetItem(str(row[1]))
+                last_update_item = QTableWidgetItem(str(row[1]))
 
             try:
-                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
+                created_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                last_update_item = QTableWidgetItem(str(row[2]))
+                created_item = QTableWidgetItem(str(row[2]))
 
             p_id_item = QTableWidgetItem(row[3])
             etag_item = QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-")
