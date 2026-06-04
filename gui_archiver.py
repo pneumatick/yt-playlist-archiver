@@ -294,9 +294,6 @@ class MainWindow(QMainWindow):
         p_id = self.playlist_table.item(row, 3).text()
         title = self.playlist_table.item(row, 0).text()
 
-        # Construct YouTube playlist URL
-        url = f"https://www.youtube.com/playlist?list={p_id}"
-
         # Open in default browser
         from urllib.parse import quote
         try:
