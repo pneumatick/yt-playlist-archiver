@@ -214,35 +214,7 @@ class MainWindow(QMainWindow):
         self.playlist_table.setSortingEnabled(False)
 
         # Get playlists from database
-        query = """
-            SELECT title, last_update, created, p_id, etag 
-            FROM playlist_data 
-        """
-
-        rows = arch.handle_query(query)
-
-        for idx, row in enumerate(rows):
-            title_item = QTableWidgetItem(row[0])
-
-            try:
-                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
-            except:
-                last_update_item = QTableWidgetItem(str(row[1]))
-
-            try:
-                created_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
-            except:
-                created_item = QTableWidgetItem(str(row[2]))
-
-            p_id_item = QTableWidgetItem(row[3])
-            etag_item = QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-")
-
-            self.playlist_table.insertRow(self.playlist_table.rowCount())
-            self.playlist_table.setItem(idx, 0, title_item)
-            self.playlist_table.setItem(idx, 1, last_update_item)
-            self.playlist_table.setItem(idx, 2, created_item)
-            self.playlist_table.setItem(idx, 3, p_id_item)
-            self.playlist_table.setItem(idx, 4, etag_item)
+        self.load_playlists()
         
         # Reenable sorting
         self.playlist_table.setSortingEnabled(True)
@@ -250,7 +222,10 @@ class MainWindow(QMainWindow):
     def load_playlists(self):
         """Load and display all playlists."""
 
-        query = "SELECT title, last_update, created, p_id, etag FROM playlist_data ORDER BY created DESC"
+        query = """
+            SELECT title, last_update, created, p_id,
+            etag FROM playlist_data
+        """
         rows = arch.handle_query(query)
 
         self.playlist_table.setRowCount(0)
