@@ -11,7 +11,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
+        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
     )
     from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
@@ -491,6 +491,30 @@ class MainWindow(QMainWindow):
 
         # Refresh playlist list upon update
         self.refresh_playlists()
+    
+    @Slot()
+    def add_playlist(self):
+        popup = AddPlaylistPopup(self)
+        popup.exec() # Blocks interaction with the main window
+
+class AddPlaylistPopup(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add New Playlist")
+        self.resize(300, 150)
+
+        # Define layout and content
+        layout = QVBoxLayout()
+        label = QLabel("Enter Playlist URL")
+
+        add_btn = QPushButton("Add")
+
+        # Connect relevant slot to add_btn
+        add_btn.clicked.connect(self.add_playlist)
+
+        layout.addWidget(label)
+        layout.addWidget(add_btn)
+        self.setLayout(layout)
     
     @Slot()
     def add_playlist(self):
