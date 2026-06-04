@@ -250,7 +250,10 @@ class MainWindow(QMainWindow):
     def load_playlists(self):
         """Load and display all playlists."""
 
-        query = "SELECT title, last_update, created, p_id, etag FROM playlist_data ORDER BY created DESC"
+        query = """
+            SELECT title, last_update, created, p_id,
+            etag FROM playlist_data
+        """
         rows = arch.handle_query(query)
 
         self.playlist_table.setRowCount(0)
