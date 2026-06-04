@@ -138,7 +138,12 @@ class MainWindow(QMainWindow):
         self.open_btn.clicked.connect(self.open_selected_playlist)
         self.open_btn.setEnabled(False)  # Enable when playlist selected
 
+        self.check_btn = QPushButton("Check Playlist For Updates")
+        self.check_btn.clicked.connect(self.update_playlist)
+        self.check_btn.setEnabled(False)
+
         btn_layout.addWidget(self.open_btn)
+        btn_layout.addWidget(self.check_btn)
         btn_layout.addStretch()
 
         left_layout.addWidget(btn_section)
@@ -235,7 +240,7 @@ class MainWindow(QMainWindow):
             self.playlist_table.setItem(idx, 3, p_id_item)
             self.playlist_table.setItem(idx, 4, etag_item)
         
-        # Enable sorting
+        # Reenable sorting
         self.playlist_table.setSortingEnabled(True)
 
     def load_playlists(self):
@@ -270,6 +275,7 @@ class MainWindow(QMainWindow):
         if row >= 0:
             # Enable action buttons
             self.open_btn.setEnabled(True)
+            self.check_btn.setEnabled(True)
             self.search_playlist_btn.setEnabled(True)
             self.show_video_search_section()
 
@@ -462,7 +468,25 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"Error searching videos: {e}")
+    
+    @Slot()
+    def update_playlist(self):
+        """
+           Check if the selected playlist has new videos added to it,
+           and update the local data if so.
+        """
 
+        row = self.playlist_table.currentRow()
+        if row < 0 or row >= self.playlist_table.rowCount():
+            return
+
+        p_id = self.playlist_table.item(row, 3).text()
+
+        # Check for changes to playlist and update local data.
+        arch.archive_playlist(p_id)
+
+        # Refresh playlist list upon update
+        self.refresh_playlists()
 
 def create_gui_application():
     """
