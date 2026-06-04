@@ -268,34 +268,10 @@ class MainWindow(QMainWindow):
 
         row = item.row()
         if row >= 0:
-            title = self.playlist_table.item(row, 0).text()
-            p_id = self.playlist_table.item(row, 4).text()
-
             # Enable action buttons
             self.open_btn.setEnabled(True)
             self.search_playlist_btn.setEnabled(True)
             self.show_video_search_section()
-
-            # Update details viewer with playlist info
-            try:
-                last_update_dt = datetime.fromtimestamp(
-                    int(self.playlist_table.item(row, 1).text())
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                last_update_dt = self.playlist_table.item(row, 1).text()
-
-            try:
-                created_dt = datetime.fromtimestamp(
-                    int(self.playlist_table.item(row, 2).text())
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                created_dt = self.playlist_table.item(row, 2).text()
-
-            self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} ===")
-            self.details_viewer.append(f"Playlist ID: {p_id}")
-            self.details_viewer.append(f"Created: {created_dt}")
-            self.details_viewer.append(f"Last Updated: {last_update_dt}")
 
             # Save the scrollbar position to prevent scrolling on append
             v_bar = self.details_viewer.verticalScrollBar()
