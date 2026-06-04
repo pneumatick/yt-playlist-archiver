@@ -11,7 +11,7 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QComboBox, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
+        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
     )
     from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
@@ -138,7 +138,16 @@ class MainWindow(QMainWindow):
         self.open_btn.clicked.connect(self.open_selected_playlist)
         self.open_btn.setEnabled(False)  # Enable when playlist selected
 
+        self.check_btn = QPushButton("Check Playlist For Updates")
+        self.check_btn.clicked.connect(self.update_playlist)
+        self.check_btn.setEnabled(False)
+
+        self.add_btn = QPushButton("Add New Playlist")
+        self.add_btn.clicked.connect(self.add_playlist)
+
         btn_layout.addWidget(self.open_btn)
+        btn_layout.addWidget(self.check_btn)
+        btn_layout.addWidget(self.add_btn)
         btn_layout.addStretch()
 
         left_layout.addWidget(btn_section)
@@ -216,14 +225,14 @@ class MainWindow(QMainWindow):
             title_item = QTableWidgetItem(row[0])
 
             try:
-                created_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
+                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[1]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                created_item = QTableWidgetItem(str(row[1]))
+                last_update_item = QTableWidgetItem(str(row[1]))
 
             try:
-                last_update_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
+                created_item = QTableWidgetItem(datetime.fromtimestamp(row[2]).strftime("%Y-%m-%d %H:%M:%S"))
             except:
-                last_update_item = QTableWidgetItem(str(row[2]))
+                created_item = QTableWidgetItem(str(row[2]))
 
             p_id_item = QTableWidgetItem(row[3])
             etag_item = QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-")
@@ -235,7 +244,7 @@ class MainWindow(QMainWindow):
             self.playlist_table.setItem(idx, 3, p_id_item)
             self.playlist_table.setItem(idx, 4, etag_item)
         
-        # Enable sorting
+        # Reenable sorting
         self.playlist_table.setSortingEnabled(True)
 
     def load_playlists(self):
@@ -268,34 +277,11 @@ class MainWindow(QMainWindow):
 
         row = item.row()
         if row >= 0:
-            title = self.playlist_table.item(row, 0).text()
-            p_id = self.playlist_table.item(row, 4).text()
-
             # Enable action buttons
-            self.open_btn.setEnabled(True)
             self.search_playlist_btn.setEnabled(True)
+            self.open_btn.setEnabled(True)
+            self.check_btn.setEnabled(True)
             self.show_video_search_section()
-
-            # Update details viewer with playlist info
-            try:
-                last_update_dt = datetime.fromtimestamp(
-                    int(self.playlist_table.item(row, 1).text())
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                last_update_dt = self.playlist_table.item(row, 1).text()
-
-            try:
-                created_dt = datetime.fromtimestamp(
-                    int(self.playlist_table.item(row, 2).text())
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                created_dt = self.playlist_table.item(row, 2).text()
-
-            self.details_viewer.clear()
-            self.details_viewer.append(f"=== {title} ===")
-            self.details_viewer.append(f"Playlist ID: {p_id}")
-            self.details_viewer.append(f"Created: {created_dt}")
-            self.details_viewer.append(f"Last Updated: {last_update_dt}")
 
             # Save the scrollbar position to prevent scrolling on append
             v_bar = self.details_viewer.verticalScrollBar()
@@ -317,9 +303,6 @@ class MainWindow(QMainWindow):
 
         p_id = self.playlist_table.item(row, 3).text()
         title = self.playlist_table.item(row, 0).text()
-
-        # Construct YouTube playlist URL
-        url = f"https://www.youtube.com/playlist?list={p_id}"
 
         # Open in default browser
         from urllib.parse import quote
@@ -489,7 +472,53 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"Error searching videos: {e}")
+    
+    @Slot()
+    def update_playlist(self):
+        """
+           Check if the selected playlist has new videos added to it,
+           and update the local data if so.
+        """
 
+        row = self.playlist_table.currentRow()
+        if row < 0 or row >= self.playlist_table.rowCount():
+            return
+
+        p_id = self.playlist_table.item(row, 3).text()
+
+        # Check for changes to playlist and update local data.
+        arch.archive_playlist(p_id)
+
+        # Refresh playlist list upon update
+        self.refresh_playlists()
+    
+    @Slot()
+    def add_playlist(self):
+        popup = AddPlaylistPopup(self)
+        popup.exec() # Blocks interaction with the main window
+
+class AddPlaylistPopup(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add New Playlist")
+        self.resize(300, 150)
+
+        # Define layout and content
+        layout = QVBoxLayout()
+        label = QLabel("Enter Playlist URL")
+
+        add_btn = QPushButton("Add")
+
+        # Connect relevant slot to add_btn
+        add_btn.clicked.connect(self.add_playlist)
+
+        layout.addWidget(label)
+        layout.addWidget(add_btn)
+        self.setLayout(layout)
+    
+    @Slot()
+    def add_playlist(self):
+        pass
 
 def create_gui_application():
     """
