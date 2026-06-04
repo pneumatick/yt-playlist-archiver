@@ -142,8 +142,12 @@ class MainWindow(QMainWindow):
         self.check_btn.clicked.connect(self.update_playlist)
         self.check_btn.setEnabled(False)
 
+        self.add_btn = QPushButton("Add New Playlist")
+        self.add_btn.clicked.connect(self.add_playlist)
+
         btn_layout.addWidget(self.open_btn)
         btn_layout.addWidget(self.check_btn)
+        btn_layout.addWidget(self.add_btn)
         btn_layout.addStretch()
 
         left_layout.addWidget(btn_section)
@@ -274,9 +278,9 @@ class MainWindow(QMainWindow):
         row = item.row()
         if row >= 0:
             # Enable action buttons
+            self.search_playlist_btn.setEnabled(True)
             self.open_btn.setEnabled(True)
             self.check_btn.setEnabled(True)
-            self.search_playlist_btn.setEnabled(True)
             self.show_video_search_section()
 
             # Save the scrollbar position to prevent scrolling on append
@@ -487,6 +491,10 @@ class MainWindow(QMainWindow):
 
         # Refresh playlist list upon update
         self.refresh_playlists()
+    
+    @Slot()
+    def add_playlist(self):
+        pass
 
 def create_gui_application():
     """
