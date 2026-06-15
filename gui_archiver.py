@@ -120,9 +120,8 @@ class MainWindow(QMainWindow):
         self.playlist_table.setHorizontalHeaderLabels([
             "Title", "Last Updated", "Created", "Playlist ID", "Etag"
         ])
-        self.playlist_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.playlist_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.playlist_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        for i in range(self.playlist_table.columnCount()):
+            self.playlist_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
         self.playlist_table.setAlternatingRowColors(True)
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.playlist_table.itemClicked.connect(self.on_playlist_selected)
