@@ -11,7 +11,8 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
+        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter,
+        QComboBox
     )
     from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
@@ -71,20 +72,15 @@ class MainWindow(QMainWindow):
         self.video_search_input.setPlaceholderText("Search videos...")
         self.video_search_input.textChanged.connect(self.on_video_search_text_changed)
 
-        self.search_all_btn = QPushButton("Search All Videos")
-        self.search_all_btn.clicked.connect(self.search_videos_all_playlists)
-
-        self.search_playlist_btn = QPushButton("Search in Playlist")
-        self.search_playlist_btn.clicked.connect(self.search_videos_in_playlist)
-        self.search_playlist_btn.setEnabled(False)  # Enable when playlist selected
+        self.search_dropdown = QComboBox()
+        self.search_dropdown.addItems(["Search All Videos", "Search in Playlist"])
 
         # Add search button visibility indicator (hidden by default)
         self.search_button_placeholder = QLabel("")  # Placeholder to maintain layout
 
         search_layout.addWidget(QLabel("Video Search:"))
         search_layout.addWidget(self.video_search_input, 1)
-        search_layout.addWidget(self.search_all_btn)
-        search_layout.addWidget(self.search_playlist_btn)
+        search_layout.addWidget(self.search_dropdown)
         search_layout.addWidget(self.search_button_placeholder)
 
         # Hide search section until a playlist is selected (shown later by show_video_search_section())
@@ -181,12 +177,10 @@ class MainWindow(QMainWindow):
     def show_video_search_section(self):
         """Show the video search section (initially hidden)."""
         self.search_button_placeholder.hide()
-        self.search_playlist_btn.show()
 
     def hide_video_search_section(self):
         """Hide the video search section."""
         self.search_button_placeholder.show()
-        self.search_playlist_btn.hide()
 
     @Slot(bool)
     def filter_playlists(self):
@@ -255,7 +249,6 @@ class MainWindow(QMainWindow):
         row = item.row()
         if row >= 0:
             # Enable action buttons
-            self.search_playlist_btn.setEnabled(True)
             self.open_btn.setEnabled(True)
             self.check_btn.setEnabled(True)
             self.show_video_search_section()
@@ -264,8 +257,12 @@ class MainWindow(QMainWindow):
             v_bar = self.details_viewer.verticalScrollBar()
             v_bar_pos = v_bar.value()
 
-            # Show all videos from the selected playlist
-            self.show_all_videos_from_playlist()
+            if self.video_search_input.text():
+                # Show videos that approximate the search text
+                self.on_video_search_text_changed()
+            else:
+                # Show all videos from the selected playlist
+                self.show_all_videos_from_playlist()
 
             # Restore scrollbar position
             v_bar.setValue(v_bar_pos)
@@ -408,9 +405,10 @@ class MainWindow(QMainWindow):
         """Perform the actual video search using archiver FTS5 functions."""
 
         # If no playlist is selected, search all videos
-        if self.playlist_table.currentRow() < 0:
+        select = self.search_dropdown.currentText()
+        if select == "Search All Videos":
             self.search_videos_all_playlists()
-        else:
+        elif select == "Search in Playlist":
             self.search_videos_in_playlist()
 
     @Slot()
