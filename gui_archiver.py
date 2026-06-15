@@ -123,6 +123,7 @@ class MainWindow(QMainWindow):
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.playlist_table.itemClicked.connect(self.on_playlist_selected)
         self.playlist_table.setSortingEnabled(True)
+        self.playlist_table.verticalHeader().setVisible(False)
 
         left_layout.addWidget(self.playlist_table)
 
