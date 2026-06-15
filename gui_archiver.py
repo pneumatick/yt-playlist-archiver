@@ -480,20 +480,29 @@ class AddPlaylistPopup(QDialog):
 
         # Define layout and content
         layout = QVBoxLayout()
-        label = QLabel("Enter Playlist URL")
-
+        label = QLabel("Enter Playlist Info")
+        self.text_field = QLineEdit()
+        self.text_field.setPlaceholderText("URL or ID...")
         add_btn = QPushButton("Add")
 
         # Connect relevant slot to add_btn
         add_btn.clicked.connect(self.add_playlist)
 
         layout.addWidget(label)
+        layout.addWidget(self.text_field)
         layout.addWidget(add_btn)
         self.setLayout(layout)
     
     @Slot()
     def add_playlist(self):
-        pass
+        text = self.text_field.text()
+
+        # Extract playlist ID from text
+        if "list=" in text:
+            pass
+
+        # Archive playlist
+        arch.archive_playlist(text)
 
 def create_gui_application():
     """
