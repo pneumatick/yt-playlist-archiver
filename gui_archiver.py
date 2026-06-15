@@ -499,10 +499,6 @@ def create_gui_application():
     """
     Factory function to create the GUI application.
 
-    Args:
-        conn: SQLite3 connection object
-        cursor: SQLite3 cursor object
-
     Returns:
         The PlaylistArchiverGUI instance (which contains the MainWindow)
     """
