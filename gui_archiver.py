@@ -325,9 +325,19 @@ class MainWindow(QMainWindow):
                     added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
                 except:
                     added = str(added_timestamp)
+                
+                # Determine status color
+                if status == "public":
+                    color = "green"
+                elif status == "unlisted":
+                    color = "yellow"
+                elif status == "privacyStatusUnspecified" or status == "private":
+                    color = "red"
+                else:
+                    color = "white"
 
                 self.details_viewer.append(
-                    f"{position + 1}. [{status}] "
+                    f"{position + 1}. <font color='{color}'>[{status}]</font> "
                     f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>"
                 )
 
