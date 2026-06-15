@@ -308,8 +308,39 @@ class Archiver:
         return response["items"][0]["snippet"]["title"]
 
     # Archive an entire playlist
-    def archive_playlist(self, playlist_id):
-        # Check if the playlist is new or not
+    def archive_playlist(self, playlist_id) -> bool:
+        success = False
+
+        self._cursor.execute('''
+            SELECT * FROM playlist_data WHERE p_id = ?
+        ''', (playlist_id,))
+        result = self._cursor.fetchall()
+
+        if not result:
+            # Archive new playlist
+            self.get_entire_playlist(playlist_id, "archive")
+            playlist_title = self._get_playlist_info(playlist_id)
+            now = datetime.datetime.now()
+            etag = self._get_etag(playlist_id)
+            self._cursor.execute('''
+                INSERT INTO playlist_data 
+                (p_id, title, created, last_update, etag) 
+                VALUES (?, ?, ?, ?, ?)
+                ''',
+                (
+                    playlist_id, playlist_title, int(now.timestamp()), 
+                    int(now.timestamp()), etag
+                )
+            )
+            self._conn.commit()
+            print("Playlist successfully archived")
+            success = True
+
+        return success
+
+    def update_playlist(self, playlist_id) -> bool:
+        success = False
+
         self._cursor.execute('''
             SELECT * FROM playlist_data WHERE p_id = ?
         ''', (playlist_id,))
@@ -334,24 +365,10 @@ class Archiver:
                 print("Playlist successfully updated")
             else:
                 print("No changes since last update")
-        else:
-            # Archive new playlist
-            self.get_entire_playlist(playlist_id, "archive")
-            playlist_title = self._get_playlist_info(playlist_id)
-            now = datetime.datetime.now()
-            etag = self._get_etag(playlist_id)
-            self._cursor.execute('''
-                INSERT INTO playlist_data 
-                (p_id, title, created, last_update, etag) 
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (
-                    playlist_id, playlist_title, int(now.timestamp()), 
-                    int(now.timestamp()), etag
-                )
-            )
-            self._conn.commit()
-            print("Playlist successfully archived")
+
+            success = True
+            
+        return success
 
     # Update playlist by peeking from the top
     def _peek_playlist_top(self, playlist_id): 

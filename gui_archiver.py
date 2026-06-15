@@ -462,10 +462,11 @@ class MainWindow(QMainWindow):
         p_id = self.playlist_table.item(row, 3).text()
 
         # Check for changes to playlist and update local data.
-        arch.archive_playlist(p_id)
+        success = arch.update_playlist(p_id)
 
         # Refresh playlist list upon update
-        self.refresh_playlists()
+        if success:
+            self.refresh_playlists()
     
     @Slot()
     def add_playlist(self):
