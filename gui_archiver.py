@@ -11,7 +11,8 @@ try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
-        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter
+        QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter,
+        QComboBox
     )
     from PySide6.QtCore import Qt, Slot, QTimer
     from PySide6.QtGui import QFont
@@ -71,20 +72,16 @@ class MainWindow(QMainWindow):
         self.video_search_input.setPlaceholderText("Search videos...")
         self.video_search_input.textChanged.connect(self.on_video_search_text_changed)
 
-        self.search_all_btn = QPushButton("Search All Videos")
-        self.search_all_btn.clicked.connect(self.search_videos_all_playlists)
-
-        self.search_playlist_btn = QPushButton("Search in Playlist")
-        self.search_playlist_btn.clicked.connect(self.search_videos_in_playlist)
-        self.search_playlist_btn.setEnabled(False)  # Enable when playlist selected
+        self.search_dropdown = QComboBox()
+        self.search_dropdown.addItems(["Search All Videos", "Search in Playlist"])
+        self.search_dropdown.currentTextChanged.connect(self.on_search_selection)
 
         # Add search button visibility indicator (hidden by default)
         self.search_button_placeholder = QLabel("")  # Placeholder to maintain layout
 
         search_layout.addWidget(QLabel("Video Search:"))
         search_layout.addWidget(self.video_search_input, 1)
-        search_layout.addWidget(self.search_all_btn)
-        search_layout.addWidget(self.search_playlist_btn)
+        search_layout.addWidget(self.search_dropdown)
         search_layout.addWidget(self.search_button_placeholder)
 
         # Hide search section until a playlist is selected (shown later by show_video_search_section())
@@ -116,17 +113,17 @@ class MainWindow(QMainWindow):
 
         # Playlist table
         self.playlist_table = QTableWidget()
-        self.playlist_table.setColumnCount(5)
+        self.playlist_table.setColumnCount(4)
         self.playlist_table.setHorizontalHeaderLabels([
-            "Title", "Last Updated", "Created", "Playlist ID", "Etag"
+            "Title", "Last Updated", "Created", "Playlist ID"
         ])
-        self.playlist_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.playlist_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.playlist_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        for i in range(self.playlist_table.columnCount()):
+            self.playlist_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
         self.playlist_table.setAlternatingRowColors(True)
         self.playlist_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.playlist_table.itemClicked.connect(self.on_playlist_selected)
         self.playlist_table.setSortingEnabled(True)
+        self.playlist_table.verticalHeader().setVisible(False)
 
         left_layout.addWidget(self.playlist_table)
 
@@ -145,9 +142,13 @@ class MainWindow(QMainWindow):
         self.add_btn = QPushButton("Add New Playlist")
         self.add_btn.clicked.connect(self.add_playlist)
 
+        self.del_btn = QPushButton("Delete Playlist")
+        self.del_btn.clicked.connect(self.delete_playlist)
+
         btn_layout.addWidget(self.open_btn)
         btn_layout.addWidget(self.check_btn)
         btn_layout.addWidget(self.add_btn)
+        btn_layout.addWidget(self.del_btn)
         btn_layout.addStretch()
 
         left_layout.addWidget(btn_section)
@@ -178,12 +179,10 @@ class MainWindow(QMainWindow):
     def show_video_search_section(self):
         """Show the video search section (initially hidden)."""
         self.search_button_placeholder.hide()
-        self.search_playlist_btn.show()
 
     def hide_video_search_section(self):
         """Hide the video search section."""
         self.search_button_placeholder.show()
-        self.search_playlist_btn.hide()
 
     @Slot(bool)
     def filter_playlists(self):
@@ -223,8 +222,8 @@ class MainWindow(QMainWindow):
         """Load and display all playlists."""
 
         query = """
-            SELECT title, last_update, created, p_id,
-            etag FROM playlist_data
+            SELECT title, last_update, created, p_id
+            FROM playlist_data
         """
         rows = arch.handle_query(query)
 
@@ -242,7 +241,6 @@ class MainWindow(QMainWindow):
             self.playlist_table.setItem(idx, 1, QTableWidgetItem(last_update))
             self.playlist_table.setItem(idx, 2, QTableWidgetItem(created))
             self.playlist_table.setItem(idx, 3, QTableWidgetItem(row[3]))
-            self.playlist_table.setItem(idx, 4, QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-"))
 
         self.playlist_search.clear()
 
@@ -253,7 +251,6 @@ class MainWindow(QMainWindow):
         row = item.row()
         if row >= 0:
             # Enable action buttons
-            self.search_playlist_btn.setEnabled(True)
             self.open_btn.setEnabled(True)
             self.check_btn.setEnabled(True)
             self.show_video_search_section()
@@ -262,8 +259,12 @@ class MainWindow(QMainWindow):
             v_bar = self.details_viewer.verticalScrollBar()
             v_bar_pos = v_bar.value()
 
-            # Show all videos from the selected playlist
-            self.show_all_videos_from_playlist()
+            if self.video_search_input.text():
+                # Show videos that approximate the search text
+                self.on_video_search_text_changed()
+            else:
+                # Show all videos from the selected playlist
+                self.show_all_videos_from_playlist()
 
             # Restore scrollbar position
             v_bar.setValue(v_bar_pos)
@@ -324,9 +325,19 @@ class MainWindow(QMainWindow):
                     added = datetime.fromtimestamp(int(added)).strftime("%Y-%m-%d %H:%M:%S")
                 except:
                     added = str(added_timestamp)
+                
+                # Determine status color
+                if status == "public":
+                    color = "green"
+                elif status == "unlisted":
+                    color = "yellow"
+                elif status == "privacyStatusUnspecified" or status == "private":
+                    color = "red"
+                else:
+                    color = "white"
 
                 self.details_viewer.append(
-                    f"{position + 1}. [{status}] "
+                    f"{position + 1}. <font color='{color}'>[{status}]</font> "
                     f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>"
                 )
 
@@ -406,11 +417,12 @@ class MainWindow(QMainWindow):
         """Perform the actual video search using archiver FTS5 functions."""
 
         # If no playlist is selected, search all videos
-        if self.playlist_table.currentRow() < 0:
+        select = self.search_dropdown.currentText()
+        if select == "Search All Videos":
             self.search_videos_all_playlists()
-        else:
+        elif select == "Search in Playlist":
             self.search_videos_in_playlist()
-
+    
     @Slot()
     def search_videos_all_playlists(self):
         """Search for videos across all playlists using FTS5."""
@@ -447,6 +459,14 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"Error searching videos: {e}")
+
+    @Slot(str)
+    def on_search_selection(self, selection):
+        search_text = self.video_search_input.text()
+        if search_text and selection == "Search All Videos":
+            self.search_videos_all_playlists()
+        elif search_text and selection == "Search in Playlist":
+            self.search_videos_in_playlist()
     
     @Slot()
     def update_playlist(self):
@@ -462,46 +482,112 @@ class MainWindow(QMainWindow):
         p_id = self.playlist_table.item(row, 3).text()
 
         # Check for changes to playlist and update local data.
-        arch.archive_playlist(p_id)
+        success = arch.update_playlist(p_id)
 
         # Refresh playlist list upon update
-        self.refresh_playlists()
+        if success:
+            self.refresh_playlists()
     
     @Slot()
     def add_playlist(self):
         popup = AddPlaylistPopup(self)
         popup.exec() # Blocks interaction with the main window
+    
+    @Slot()
+    def delete_playlist(self):
+        # Get and prepare relevant playlist info
+        row = self.playlist_table.currentRow()
+        if row < 0 or row >= self.playlist_table.rowCount():
+            return
+
+        title = self.playlist_table.item(row, 0).text()
+        p_id = self.playlist_table.item(row, 3).text()
+
+        playlist_info = {
+            "Title": title,
+            "Playlist ID": p_id
+        }
+
+        # Instantiate popup
+        popup = DeletePlaylistPopup(playlist_info, parent=self)
+        popup.exec() # Blocks interaction with the main window
+        self.refresh_playlists()
 
 class AddPlaylistPopup(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
         self.setWindowTitle("Add New Playlist")
         self.resize(300, 150)
 
         # Define layout and content
         layout = QVBoxLayout()
-        label = QLabel("Enter Playlist URL")
-
+        label = QLabel("Enter Playlist Info")
+        self.text_field = QLineEdit()
+        self.text_field.setPlaceholderText("URL or ID...")
         add_btn = QPushButton("Add")
 
         # Connect relevant slot to add_btn
         add_btn.clicked.connect(self.add_playlist)
 
         layout.addWidget(label)
+        layout.addWidget(self.text_field)
         layout.addWidget(add_btn)
         self.setLayout(layout)
     
     @Slot()
     def add_playlist(self):
-        pass
+        text = self.text_field.text()
+
+        # Extract playlist ID from text (assuming URL or playlist ID)
+        if "list=" in text:
+            id = text.split("list=")[1].split("&")[0]
+            print(id)
+        else:
+            id = text
+
+        # Archive playlist
+        success = arch.archive_playlist(id)
+        if success:
+            print("Archive successful")
+            self.parent.refresh_playlists()
+        else:
+            print("Archive unsuccessful")
+
+class DeletePlaylistPopup(QDialog):
+    def __init__(self, playlist_info, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Delete Playlist")
+        self.resize(300, 150)
+
+        self.p_id = playlist_info["Playlist ID"]
+
+        # Define layout and content
+        layout = QVBoxLayout()
+
+        label = QLabel("Are you sure you want to delete the following playlist?\n")
+
+        info_text = "".join([f"{k}: {v}\n" for k, v in playlist_info.items()])
+        info_label = QLabel(info_text)
+
+        del_btn = QPushButton("Delete")
+
+        # Connect relevant slot to del_btn
+        del_btn.clicked.connect(self.del_playlist)
+
+        layout.addWidget(label)
+        layout.addWidget(info_label)
+        layout.addWidget(del_btn)
+        self.setLayout(layout)
+    
+    @Slot()
+    def del_playlist(self):
+        arch.delete_playlist(self.p_id)
+        self.done(0)
 
 def create_gui_application():
     """
     Factory function to create the GUI application.
-
-    Args:
-        conn: SQLite3 connection object
-        cursor: SQLite3 cursor object
 
     Returns:
         The PlaylistArchiverGUI instance (which contains the MainWindow)
