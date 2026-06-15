@@ -476,6 +476,7 @@ class MainWindow(QMainWindow):
 class AddPlaylistPopup(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
         self.setWindowTitle("Add New Playlist")
         self.resize(300, 150)
 
@@ -498,12 +499,20 @@ class AddPlaylistPopup(QDialog):
     def add_playlist(self):
         text = self.text_field.text()
 
-        # Extract playlist ID from text
+        # Extract playlist ID from text (assuming URL or playlist ID)
         if "list=" in text:
-            pass
+            id = text.split("list=")[1].split("&")[0]
+            print(id)
+        else:
+            id = text
 
         # Archive playlist
-        arch.archive_playlist(text)
+        success = arch.archive_playlist(id)
+        if success:
+            print("Archive successful")
+            self.parent.refresh_playlists()
+        else:
+            print("Archive unsuccessful")
 
 def create_gui_application():
     """
