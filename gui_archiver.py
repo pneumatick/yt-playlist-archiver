@@ -413,14 +413,6 @@ class MainWindow(QMainWindow):
         elif select == "Search in Playlist":
             self.search_videos_in_playlist()
     
-    @Slot(str)
-    def on_search_selection(self, selection):
-        search_text = self.video_search_input.text()
-        if search_text and selection == "Search All Videos":
-            self.search_videos_all_playlists()
-        elif search_text and selection == "Search in Playlist":
-            self.search_videos_in_playlist()
-
     @Slot()
     def search_videos_all_playlists(self):
         """Search for videos across all playlists using FTS5."""
@@ -457,6 +449,14 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"Error searching videos: {e}")
+
+    @Slot(str)
+    def on_search_selection(self, selection):
+        search_text = self.video_search_input.text()
+        if search_text and selection == "Search All Videos":
+            self.search_videos_all_playlists()
+        elif search_text and selection == "Search in Playlist":
+            self.search_videos_in_playlist()
     
     @Slot()
     def update_playlist(self):
