@@ -116,9 +116,9 @@ class MainWindow(QMainWindow):
 
         # Playlist table
         self.playlist_table = QTableWidget()
-        self.playlist_table.setColumnCount(5)
+        self.playlist_table.setColumnCount(4)
         self.playlist_table.setHorizontalHeaderLabels([
-            "Title", "Last Updated", "Created", "Playlist ID", "Etag"
+            "Title", "Last Updated", "Created", "Playlist ID"
         ])
         for i in range(self.playlist_table.columnCount()):
             self.playlist_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
@@ -226,8 +226,8 @@ class MainWindow(QMainWindow):
         """Load and display all playlists."""
 
         query = """
-            SELECT title, last_update, created, p_id,
-            etag FROM playlist_data
+            SELECT title, last_update, created, p_id
+            FROM playlist_data
         """
         rows = arch.handle_query(query)
 
@@ -245,7 +245,6 @@ class MainWindow(QMainWindow):
             self.playlist_table.setItem(idx, 1, QTableWidgetItem(last_update))
             self.playlist_table.setItem(idx, 2, QTableWidgetItem(created))
             self.playlist_table.setItem(idx, 3, QTableWidgetItem(row[3]))
-            self.playlist_table.setItem(idx, 4, QTableWidgetItem(row[4]) if row[4] else QTableWidgetItem("-"))
 
         self.playlist_search.clear()
 
