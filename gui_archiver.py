@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
 
         self.search_dropdown = QComboBox()
         self.search_dropdown.addItems(["Search All Videos", "Search in Playlist"])
+        self.search_dropdown.currentTextChanged.connect(self.on_search_selection)
 
         # Add search button visibility indicator (hidden by default)
         self.search_button_placeholder = QLabel("")  # Placeholder to maintain layout
@@ -409,6 +410,14 @@ class MainWindow(QMainWindow):
         if select == "Search All Videos":
             self.search_videos_all_playlists()
         elif select == "Search in Playlist":
+            self.search_videos_in_playlist()
+    
+    @Slot(str)
+    def on_search_selection(self, selection):
+        search_text = self.video_search_input.text()
+        if search_text and selection == "Search All Videos":
+            self.search_videos_all_playlists()
+        elif search_text and selection == "Search in Playlist":
             self.search_videos_in_playlist()
 
     @Slot()
