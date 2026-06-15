@@ -145,9 +145,13 @@ class MainWindow(QMainWindow):
         self.add_btn = QPushButton("Add New Playlist")
         self.add_btn.clicked.connect(self.add_playlist)
 
+        self.del_btn = QPushButton("Delete Playlist")
+        self.del_btn.clicked.connect(self.delete_playlist)
+
         btn_layout.addWidget(self.open_btn)
         btn_layout.addWidget(self.check_btn)
         btn_layout.addWidget(self.add_btn)
+        btn_layout.addWidget(self.del_btn)
         btn_layout.addStretch()
 
         left_layout.addWidget(btn_section)
@@ -472,6 +476,26 @@ class MainWindow(QMainWindow):
     def add_playlist(self):
         popup = AddPlaylistPopup(self)
         popup.exec() # Blocks interaction with the main window
+    
+    @Slot()
+    def delete_playlist(self):
+        # Get and prepare relevant playlist info
+        row = self.playlist_table.currentRow()
+        if row < 0 or row >= self.playlist_table.rowCount():
+            return
+
+        title = self.playlist_table.item(row, 0).text()
+        p_id = self.playlist_table.item(row, 3).text()
+
+        playlist_info = {
+            "Title": title,
+            "Playlist ID": p_id
+        }
+
+        # Instantiate popup
+        popup = DeletePlaylistPopup(playlist_info, parent=self)
+        popup.exec() # Blocks interaction with the main window
+        self.refresh_playlists()
 
 class AddPlaylistPopup(QDialog):
     def __init__(self, parent=None):
@@ -513,6 +537,37 @@ class AddPlaylistPopup(QDialog):
             self.parent.refresh_playlists()
         else:
             print("Archive unsuccessful")
+
+class DeletePlaylistPopup(QDialog):
+    def __init__(self, playlist_info, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Delete Playlist")
+        self.resize(300, 150)
+
+        self.p_id = playlist_info["Playlist ID"]
+
+        # Define layout and content
+        layout = QVBoxLayout()
+
+        label = QLabel("Are you sure you want to delete the following playlist?\n")
+
+        info_text = "".join([f"{k}: {v}\n" for k, v in playlist_info.items()])
+        info_label = QLabel(info_text)
+
+        del_btn = QPushButton("Delete")
+
+        # Connect relevant slot to del_btn
+        del_btn.clicked.connect(self.del_playlist)
+
+        layout.addWidget(label)
+        layout.addWidget(info_label)
+        layout.addWidget(del_btn)
+        self.setLayout(layout)
+    
+    @Slot()
+    def del_playlist(self):
+        arch.delete_playlist(self.p_id)
+        self.done(0)
 
 def create_gui_application():
     """
