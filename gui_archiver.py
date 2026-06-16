@@ -14,7 +14,7 @@ try:
         QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter,
         QComboBox
     )
-    from PySide6.QtCore import Qt, Slot, QTimer
+    from PySide6.QtCore import Slot, QTimer, Qt
     from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
@@ -144,12 +144,13 @@ class MainWindow(QMainWindow):
 
         self.del_btn = QPushButton("Delete Playlist")
         self.del_btn.clicked.connect(self.delete_playlist)
+        self.del_btn.setEnabled(False)
 
-        btn_layout.addWidget(self.open_btn)
-        btn_layout.addWidget(self.check_btn)
         btn_layout.addWidget(self.add_btn)
-        btn_layout.addWidget(self.del_btn)
+        btn_layout.addWidget(self.check_btn)
+        btn_layout.addWidget(self.open_btn)
         btn_layout.addStretch()
+        btn_layout.addWidget(self.del_btn, alignment=Qt.AlignRight)
 
         left_layout.addWidget(btn_section)
 
@@ -253,6 +254,7 @@ class MainWindow(QMainWindow):
             # Enable action buttons
             self.open_btn.setEnabled(True)
             self.check_btn.setEnabled(True)
+            self.del_btn.setEnabled(True)
             self.show_video_search_section()
 
             # Save the scrollbar position to prevent scrolling on append
@@ -286,9 +288,9 @@ class MainWindow(QMainWindow):
             import webbrowser
             playlist_url = f"https://www.youtube.com/playlist?list={quote(p_id)}"
             webbrowser.open(playlist_url)
-            self.details_viewer.append(f"\nOpening {title} in your browser...")
+            self.details_viewer.append(f"<span>\nOpening {title} in your browser...</span>")
         except Exception as e:
-            self.details_viewer.append(f"\nError opening playlist: {e}")
+            self.details_viewer.append(f"<span>\nError opening playlist: {e}</span>")
 
     @Slot()
     def show_all_videos_from_playlist(self):
@@ -312,7 +314,7 @@ class MainWindow(QMainWindow):
             videos = arch.handle_query(query, (p_id,))
 
             if not videos:
-                self.details_viewer.append("No videos found in this playlist.")
+                self.details_viewer.append("<span>No videos found in this playlist.</span>")
                 return
 
             self.details_viewer.clear()
@@ -327,14 +329,7 @@ class MainWindow(QMainWindow):
                     added = str(added_timestamp)
                 
                 # Determine status color
-                if status == "public":
-                    color = "green"
-                elif status == "unlisted":
-                    color = "yellow"
-                elif status == "privacyStatusUnspecified" or status == "private":
-                    color = "red"
-                else:
-                    color = "white"
+                color = self._determine_status_color(status)
 
                 self.details_viewer.append(
                     f"{position + 1}. <font color='{color}'>[{status}]</font> "
@@ -342,9 +337,9 @@ class MainWindow(QMainWindow):
                 )
 
             if len(videos) > 50:
-                self.details_viewer.append("-" * 50 + "\n")
+                self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
                 self.details_viewer.append(
-                    f"(Showing all {len(videos)} videos. Use browser for full playlist view.)"
+                    f"<span>(Showing all {len(videos)} videos. Use browser for full playlist view.)</span>"
                 )
 
         except Exception as e:
@@ -358,12 +353,12 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
-        p_id = self.playlist_table.item(row, 3).text()
         title = self.playlist_table.item(row, 0).text()
+        p_id = self.playlist_table.item(row, 3).text()
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
-            self.details_viewer.append("Please enter a search term.")
+            self.details_viewer.append("<span>Please enter a search term.</span>")
             return
 
         # Use the FTS5 search from archiver.py directly via cursor
@@ -371,7 +366,7 @@ class MainWindow(QMainWindow):
             search_results = arch.search_in_playlist_fts(p_id, query_text)
 
             if not search_results:
-                self.details_viewer.append(f"No results found for '{query_text}' in {title}.")
+                self.details_viewer.append(f"<span>No results found for '{query_text}' in {title}.</span>")
                 return
 
             self.details_viewer.clear()
@@ -380,9 +375,11 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
-            for title_text, vid_id, rank in search_results:
+            for title_text, vid_id, status, rank in search_results:
+                color = self._determine_status_color(status)
                 self.details_viewer.append(
-                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                    f"• <font color='{color}'>[{status}]</font> "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
                 )
 
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
@@ -391,7 +388,7 @@ class MainWindow(QMainWindow):
             )
 
         except Exception as e:
-            self.details_viewer.append(f"Error searching videos: {e}")
+            self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
 
     @Slot(str)
     def on_video_search_text_changed(self, text=None):
@@ -430,7 +427,7 @@ class MainWindow(QMainWindow):
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
-            self.details_viewer.append("Please enter a search term.")
+            self.details_viewer.append("<span>Please enter a search term.</span>")
             return
 
         # Use the FTS5 search from archiver.py directly via cursor
@@ -438,7 +435,7 @@ class MainWindow(QMainWindow):
             search_results = arch.search_all_videos_fts(query_text)
 
             if not search_results:
-                self.details_viewer.append(f"No results found for '{query_text}' in all videos.")
+                self.details_viewer.append(f"<span>No results found for '{query_text}' in all videos.</span>")
                 return
 
             self.details_viewer.clear()
@@ -447,9 +444,11 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
-            for title_text, vid_id, rank in search_results:
+            for title_text, vid_id, status, rank in search_results:
+                color = self._determine_status_color(status)
                 self.details_viewer.append(
-                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                    f"• <font color='{color}'>[{status}]</font> "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
                 )
 
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
@@ -458,7 +457,19 @@ class MainWindow(QMainWindow):
             )
 
         except Exception as e:
-            self.details_viewer.append(f"Error searching videos: {e}")
+            self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
+    
+    def _determine_status_color(self, status):
+        color = "white"
+
+        if status == "public":
+            color = "green"
+        elif status == "unlisted":
+            color = "yellow"
+        elif status == "privacyStatusUnspecified" or status == "private":
+            color = "red"
+        
+        return color
 
     @Slot(str)
     def on_search_selection(self, selection):
