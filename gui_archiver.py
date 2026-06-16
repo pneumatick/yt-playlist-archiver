@@ -144,6 +144,7 @@ class MainWindow(QMainWindow):
 
         self.del_btn = QPushButton("Delete Playlist")
         self.del_btn.clicked.connect(self.delete_playlist)
+        self.del_btn.setEnabled(False)
 
         btn_layout.addWidget(self.open_btn)
         btn_layout.addWidget(self.check_btn)
@@ -253,6 +254,7 @@ class MainWindow(QMainWindow):
             # Enable action buttons
             self.open_btn.setEnabled(True)
             self.check_btn.setEnabled(True)
+            self.del_btn.setEnabled(True)
             self.show_video_search_section()
 
             # Save the scrollbar position to prevent scrolling on append
