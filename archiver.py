@@ -489,13 +489,15 @@ class Archiver:
     # Search all videos using FTS5 (replaces difflib-based search)
     def search_all_videos_fts(self, query, n_results = 10):
         self._cursor.execute('''
-            SELECT title, vid_id, rank
-            FROM videos_fts
+            SELECT v.title, v.vid_id, v.status, f.rank
+            FROM videos_fts AS f
+            INNER JOIN videos as v ON v.vid_id = f.vid_id
             WHERE videos_fts MATCH ?
-            ORDER BY rank
+            ORDER BY f.rank
             LIMIT ?
         ''', (query, n_results))
         result = self._cursor.fetchall()
+        print(result)
         
         return result
 

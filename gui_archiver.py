@@ -329,14 +329,7 @@ class MainWindow(QMainWindow):
                     added = str(added_timestamp)
                 
                 # Determine status color
-                if status == "public":
-                    color = "green"
-                elif status == "unlisted":
-                    color = "yellow"
-                elif status == "privacyStatusUnspecified" or status == "private":
-                    color = "red"
-                else:
-                    color = "white"
+                color = self._determine_status_color(status)
 
                 self.details_viewer.append(
                     f"{position + 1}. <font color='{color}'>[{status}]</font> "
@@ -360,8 +353,8 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= self.playlist_table.rowCount():
             return
 
-        p_id = self.playlist_table.item(row, 3).text()
         title = self.playlist_table.item(row, 0).text()
+        p_id = self.playlist_table.item(row, 3).text()
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
@@ -382,9 +375,11 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
-            for title_text, vid_id, rank in search_results:
+            for title_text, vid_id, status, rank in search_results:
+                color = self._determine_status_color(status)
                 self.details_viewer.append(
-                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                    f"• <font color='{color}'>[{status}]</font> "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
                 )
 
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
@@ -449,9 +444,11 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"<span>Found {len(search_results)} result(s):\n</span>")
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
 
-            for title_text, vid_id, rank in search_results:
+            for title_text, vid_id, status, rank in search_results:
+                color = self._determine_status_color(status)
                 self.details_viewer.append(
-                    f"• <a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
+                    f"• <font color='{color}'>[{status}]</font> "
+                    f"<a href=\"https://www.youtube.com/watch?v={vid_id}\">{title_text}</a>\n"
                 )
 
             self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
@@ -461,6 +458,18 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
+    
+    def _determine_status_color(self, status):
+        color = "white"
+
+        if status == "public":
+            color = "green"
+        elif status == "unlisted":
+            color = "yellow"
+        elif status == "privacyStatusUnspecified" or status == "private":
+            color = "red"
+        
+        return color
 
     @Slot(str)
     def on_search_selection(self, selection):
