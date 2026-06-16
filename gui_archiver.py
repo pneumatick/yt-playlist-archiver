@@ -286,9 +286,9 @@ class MainWindow(QMainWindow):
             import webbrowser
             playlist_url = f"https://www.youtube.com/playlist?list={quote(p_id)}"
             webbrowser.open(playlist_url)
-            self.details_viewer.append(f"\nOpening {title} in your browser...")
+            self.details_viewer.append(f"<span>\nOpening {title} in your browser...</span>")
         except Exception as e:
-            self.details_viewer.append(f"\nError opening playlist: {e}")
+            self.details_viewer.append(f"<span>\nError opening playlist: {e}</span>")
 
     @Slot()
     def show_all_videos_from_playlist(self):
@@ -312,7 +312,7 @@ class MainWindow(QMainWindow):
             videos = arch.handle_query(query, (p_id,))
 
             if not videos:
-                self.details_viewer.append("No videos found in this playlist.")
+                self.details_viewer.append("<span>No videos found in this playlist.</span>")
                 return
 
             self.details_viewer.clear()
@@ -363,7 +363,7 @@ class MainWindow(QMainWindow):
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
-            self.details_viewer.append("Please enter a search term.")
+            self.details_viewer.append("<span>Please enter a search term.</span>")
             return
 
         # Use the FTS5 search from archiver.py directly via cursor
@@ -371,7 +371,7 @@ class MainWindow(QMainWindow):
             search_results = arch.search_in_playlist_fts(p_id, query_text)
 
             if not search_results:
-                self.details_viewer.append(f"No results found for '{query_text}' in {title}.")
+                self.details_viewer.append(f"<span>No results found for '{query_text}' in {title}.</span>")
                 return
 
             self.details_viewer.clear()
@@ -391,7 +391,7 @@ class MainWindow(QMainWindow):
             )
 
         except Exception as e:
-            self.details_viewer.append(f"Error searching videos: {e}")
+            self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
 
     @Slot(str)
     def on_video_search_text_changed(self, text=None):
@@ -430,7 +430,7 @@ class MainWindow(QMainWindow):
         query_text = self.video_search_input.text().strip()
 
         if not query_text:
-            self.details_viewer.append("Please enter a search term.")
+            self.details_viewer.append("<span>Please enter a search term.</span>")
             return
 
         # Use the FTS5 search from archiver.py directly via cursor
@@ -438,7 +438,7 @@ class MainWindow(QMainWindow):
             search_results = arch.search_all_videos_fts(query_text)
 
             if not search_results:
-                self.details_viewer.append(f"No results found for '{query_text}' in all videos.")
+                self.details_viewer.append(f"<span>No results found for '{query_text}' in all videos.</span>")
                 return
 
             self.details_viewer.clear()
@@ -458,7 +458,7 @@ class MainWindow(QMainWindow):
             )
 
         except Exception as e:
-            self.details_viewer.append(f"Error searching videos: {e}")
+            self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
 
     @Slot(str)
     def on_search_selection(self, selection):
