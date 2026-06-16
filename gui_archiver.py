@@ -14,7 +14,7 @@ try:
         QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter,
         QComboBox
     )
-    from PySide6.QtCore import Qt, Slot, QTimer
+    from PySide6.QtCore import Slot, QTimer
     from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
