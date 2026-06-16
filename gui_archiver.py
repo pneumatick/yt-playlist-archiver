@@ -14,7 +14,7 @@ try:
         QDialog, QTextBrowser, QHeaderView, QFrame, QLabel, QSplitter,
         QComboBox
     )
-    from PySide6.QtCore import Slot, QTimer
+    from PySide6.QtCore import Slot, QTimer, Qt
     from PySide6.QtGui import QFont
 except ImportError:
     print("PySide6 is not installed. Please install it with: pip install PySide6")
@@ -146,11 +146,11 @@ class MainWindow(QMainWindow):
         self.del_btn.clicked.connect(self.delete_playlist)
         self.del_btn.setEnabled(False)
 
-        btn_layout.addWidget(self.open_btn)
-        btn_layout.addWidget(self.check_btn)
         btn_layout.addWidget(self.add_btn)
-        btn_layout.addWidget(self.del_btn)
+        btn_layout.addWidget(self.check_btn)
+        btn_layout.addWidget(self.open_btn)
         btn_layout.addStretch()
+        btn_layout.addWidget(self.del_btn, alignment=Qt.AlignRight)
 
         left_layout.addWidget(btn_section)
 
