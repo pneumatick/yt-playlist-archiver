@@ -474,9 +474,10 @@ class Archiver:
     def search_in_playlist_fts(self, playlist_id, query, n_results = 10):
         # Query videos that are in the playlist and match the FTS5 search
         self._cursor.execute('''
-            SELECT v.title, v.vid_id, v.rank
+            SELECT v.title, v.vid_id, vids.status, v.rank
             FROM videos_fts AS v
-            LEFT JOIN playlist_items ON playlist_items.vid_id = v.vid_id
+            INNER JOIN videos AS vids ON vids.vid_id = v.vid_id
+            INNER JOIN playlist_items ON playlist_items.vid_id = v.vid_id
             WHERE v.videos_fts MATCH ?
                 AND playlist_items.p_id = ?
             ORDER BY v.rank
@@ -497,7 +498,6 @@ class Archiver:
             LIMIT ?
         ''', (query, n_results))
         result = self._cursor.fetchall()
-        print(result)
         
         return result
 
