@@ -342,9 +342,9 @@ class MainWindow(QMainWindow):
                 )
 
             if len(videos) > 50:
-                self.details_viewer.append("-" * 50 + "\n")
+                self.details_viewer.append("<span>" + "-" * 50 + "\n</span>")
                 self.details_viewer.append(
-                    f"(Showing all {len(videos)} videos. Use browser for full playlist view.)"
+                    f"<span>(Showing all {len(videos)} videos. Use browser for full playlist view.)</span>"
                 )
 
         except Exception as e:
