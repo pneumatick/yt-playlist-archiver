@@ -492,7 +492,7 @@ class Archiver:
             SELECT title, vid_id, rank
             FROM videos_fts
             WHERE videos_fts MATCH ?
-            ORDER BY rank DESC
+            ORDER BY rank
             LIMIT ?
         ''', (query, n_results))
         result = self._cursor.fetchall()
