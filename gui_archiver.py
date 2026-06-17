@@ -294,7 +294,12 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_all_videos_from_playlist(self):
-        """Show all videos from the selected playlist."""
+        """Display all videos from the currently selected playlist in the details viewer.
+
+        Retrieves video data from the database, formats each entry with position number
+        and status color coding (green for public, yellow for unlisted, red for private).
+        Appends results to the QtTextBrowser details viewer widget.
+        """
 
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
@@ -347,7 +352,12 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def search_videos_in_playlist(self):
-        """Search for videos in the selected playlist using FTS5."""
+        """Search for videos within a specific playlist using SQLite FTS5 full-text search.
+
+        Executes an FTS5 query against the current playlist to find matching videos,
+        displays up to 10 results with status color coding in the QtTextBrowser.
+        Results are ordered by relevance rank from highest to lowest.
+        """
 
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
@@ -411,7 +421,12 @@ class MainWindow(QMainWindow):
         self.search_timer.start()
 
     def _perform_video_search(self):
-        """Perform the actual video search using archiver FTS5 functions."""
+        """Execute the debounced video search query.
+
+        Called after a 200ms delay to allow user input to stabilize before searching.
+        Dispatches to either all-playlists or playlist-specific search based on
+        current dropdown selection.
+        """
 
         # If no playlist is selected, search all videos
         select = self.search_dropdown.currentText()
@@ -460,6 +475,14 @@ class MainWindow(QMainWindow):
             self.details_viewer.append(f"<span>Error searching videos: {e}</span>")
     
     def _determine_status_color(self, status):
+        """Determine the display color for a given video status.
+
+        Args:
+            status: The status string to check (public, unlisted, private, etc.)
+
+        Returns:
+            A color string (green, yellow, red, or white) corresponding to the status.
+        """
         color = "white"
 
         if status == "public":
@@ -501,12 +524,17 @@ class MainWindow(QMainWindow):
     
     @Slot()
     def add_playlist(self):
+        """Display popup dialog for adding a new YouTube playlist to archive."""
         popup = AddPlaylistPopup(self)
         popup.exec() # Blocks interaction with the main window
     
     @Slot()
     def delete_playlist(self):
-        # Get and prepare relevant playlist info
+        """Delete the currently selected playlist after user confirmation.
+
+        Displays a confirmation dialog showing playlist details, then removes
+        the playlist from the database if the user confirms.
+        """
         row = self.playlist_table.currentRow()
         if row < 0 or row >= self.playlist_table.rowCount():
             return
@@ -525,20 +553,27 @@ class MainWindow(QMainWindow):
         self.refresh_playlists()
 
 class AddPlaylistPopup(QDialog):
+    """Dialog for adding a new playlist by URL or ID."""
+
     def __init__(self, parent=None):
+        """Initialize the add playlist dialog.
+
+        Args:
+            parent: The parent window widget (optional).
+        """
         super().__init__(parent)
         self.parent = parent
         self.setWindowTitle("Add New Playlist")
         self.resize(300, 150)
 
-        # Define layout and content
+        # Create and configure the layout with input field and button
         layout = QVBoxLayout()
         label = QLabel("Enter Playlist Info")
         self.text_field = QLineEdit()
         self.text_field.setPlaceholderText("URL or ID...")
         add_btn = QPushButton("Add")
 
-        # Connect relevant slot to add_btn
+        # Connect the add button to trigger playlist archiving
         add_btn.clicked.connect(self.add_playlist)
 
         layout.addWidget(label)
@@ -548,9 +583,10 @@ class AddPlaylistPopup(QDialog):
     
     @Slot()
     def add_playlist(self):
+        """Handle the add button click to archive a new playlist."""
         text = self.text_field.text()
 
-        # Extract playlist ID from text (assuming URL or playlist ID)
+        # Extract playlist ID from text (URL format or direct ID)
         if "list=" in text:
             id = text.split("list=")[1].split("&")[0]
             print(id)
@@ -566,14 +602,22 @@ class AddPlaylistPopup(QDialog):
             print("Archive unsuccessful")
 
 class DeletePlaylistPopup(QDialog):
+    """Dialog for confirming and deleting a playlist."""
+
     def __init__(self, playlist_info, parent=None):
+        """Initialize the delete playlist confirmation dialog.
+
+        Args:
+            playlist_info: A dictionary containing playlist metadata (title, ID).
+            parent: The parent window widget (optional).
+        """
         super().__init__(parent)
         self.setWindowTitle("Delete Playlist")
         self.resize(300, 150)
 
         self.p_id = playlist_info["Playlist ID"]
 
-        # Define layout and content
+        # Create layout with confirmation message and delete button
         layout = QVBoxLayout()
 
         label = QLabel("Are you sure you want to delete the following playlist?\n")
@@ -583,7 +627,7 @@ class DeletePlaylistPopup(QDialog):
 
         del_btn = QPushButton("Delete")
 
-        # Connect relevant slot to del_btn
+        # Connect the delete button to trigger deletion
         del_btn.clicked.connect(self.del_playlist)
 
         layout.addWidget(label)
@@ -593,6 +637,7 @@ class DeletePlaylistPopup(QDialog):
     
     @Slot()
     def del_playlist(self):
+        """Confirm deletion and remove the playlist from the database."""
         arch.delete_playlist(self.p_id)
         self.done(0)
 
