@@ -219,7 +219,7 @@ class Archiver:
 
         try:
             response = request.execute()
-        except HttpError as e:
+        except HttpError:
             raise
         return response
 
@@ -390,8 +390,8 @@ class Archiver:
                 else:
                     end_reached = True
                     continue
-        except HttpError as e:
-            print(f"YouTube API error ({e.status_code}): {e.reason}")
+        except HttpError:
+            raise
 
         return
 
@@ -427,7 +427,7 @@ class Archiver:
 
         Reads playlist IDs from the specified file and processes each playlist based
         on how many items to retrieve:
-        - If n_items is None or 0: Archives entire playlist (uses get_entire_playlist)
+        - If n_items is None or 0: Archives each entire playlist
         - If n_items is an int: Retrieves exactly n_items items per playlist
         - If n_items is a list: Each element specifies items for corresponding playlist
 
@@ -446,7 +446,7 @@ class Archiver:
         for i, p_id in enumerate(playlist_ids):
             if not n_items:
                 print(f"\nGetting entire playlist with ID {p_id}\n")
-                self.get_entire_playlist(p_id, "archive")
+                self.archive_playlist(p_id)
             elif type(n_items) is int:
                 print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
                 self.get_n_playlist_items(p_id, n_items)
@@ -488,9 +488,8 @@ class Archiver:
 
         try:
             response = request.execute()
-        except HttpError as e:
-            raise HttpError(resp=e)
-
+        except HttpError:
+            raise
         return response["etag"]
 
     def check_playlist_for_changes(self, playlist_id) -> tuple[bool, str]:
@@ -548,8 +547,8 @@ class Archiver:
         )
         try:
             response = request.execute()
-        except HttpError as e:
-            raise HttpError(resp=e)
+        except HttpError:
+            raise
         
         return response["items"][0]["snippet"]["title"]
 
@@ -628,7 +627,11 @@ class Archiver:
 
             if changed and etag:
                 # Update existing playlist
-                self._peek_playlist_top(playlist_id)
+                try:
+                    self._peek_playlist_top(playlist_id)
+                except HttpError as e:
+                    print(f"YouTube API error ({e.status_code}): {e.reason}")
+                    return success
                 now = datetime.datetime.now()
                 self._cursor.execute('''
                     UPDATE playlist_data 
@@ -662,34 +665,36 @@ class Archiver:
         new_videos = { "items": [] } 
         more = True 
     
-        response = self._get_playlist_page(playlist_id) 
-    
-        # Check if video is in playlist or not and handle accordingly 
-        while more: 
-            for item in response['items']: 
-                video_id = item['contentDetails']['videoId'] 
-                
-                self._cursor.execute( 
-                    ''' 
-                        SELECT * FROM playlist_items  
-                        WHERE p_id = ? AND vid_id = ? 
-                    ''', 
-                    (playlist_id, video_id) 
-                ) 
-                result = self._cursor.fetchall() 
-                if result: 
-                    print("Existing video encountered.")
-                    more = False 
-                    break 
-                else: 
-                    print(f"New video found: {item['snippet']['title']}")
-                    new_videos['items'].append(item) 
-    
-            # Get the next page if necessary 
-            if more and "nextPageToken" in response: 
-                token = response["nextPageToken"] 
-                response = self._get_playlist_page(playlist_id, next_page = token) 
-    
+        try:
+            response = self._get_playlist_page(playlist_id) 
+        
+            # Check if video is in playlist or not and handle accordingly 
+            while more: 
+                for item in response['items']: 
+                    video_id = item['contentDetails']['videoId'] 
+                    
+                    self._cursor.execute( 
+                        ''' 
+                            SELECT * FROM playlist_items  
+                            WHERE p_id = ? AND vid_id = ? 
+                        ''', 
+                        (playlist_id, video_id) 
+                    ) 
+                    result = self._cursor.fetchall() 
+                    if result: 
+                        print("Existing video encountered.")
+                        more = False 
+                        break 
+                    else: 
+                        print(f"New video found: {item['snippet']['title']}")
+                        new_videos['items'].append(item) 
+        
+                # Get the next page if necessary 
+                if more and "nextPageToken" in response: 
+                    token = response["nextPageToken"] 
+                    response = self._get_playlist_page(playlist_id, next_page = token) 
+        except HttpError:
+            raise
         
         # Add the new videos and increment positions of old videos 
         if len(new_videos["items"]) > 0: 
