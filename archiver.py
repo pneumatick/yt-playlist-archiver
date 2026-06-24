@@ -114,7 +114,8 @@ class Archiver:
             del archiver  # Triggers this method
         """
         print("Closing database...")
-        self._conn.close()
+        if self._conn:
+            self._conn.close()
 
     def _get_authenticated_service(self):
         """Authenticate with Google OAuth 2.0 and return a YouTube API service object.
@@ -219,9 +220,7 @@ class Archiver:
         try:
             response = request.execute()
         except HttpError as e:
-            print(f"YouTube API error ({e.status_code}): {e.reason}")
-            return None
-
+            raise
         return response
 
     @staticmethod
@@ -306,31 +305,36 @@ class Archiver:
         """
         end_reached = False
 
-        response = self._get_playlist_page(playlist_id)
-        while not end_reached:
-            if not response:
-                print("No response received...")
-                return
+        try:
+            response = self._get_playlist_page(playlist_id)
 
-            # Handle the response
-            if behavior == "print":
-                self.print_playlist_response(response)
-            elif behavior == "archive":
-                self._archive_playlist_response(playlist_id, response)
-            else:
-                print(f"Unknown behavior specified: {behavior}")
-                return
+            while not end_reached:
+                if not response:
+                    print("No response received...")
+                    return
 
-            # Get the next page if possible, otherwise end loop
-            if "nextPageToken" in response:
-                nextPageToken = response["nextPageToken"]
-                response = self._get_playlist_page(
-                    playlist_id, 
-                    next_page=nextPageToken
-                )
-            else:
-                end_reached = True
-                continue
+                # Handle the response
+                if behavior == "print":
+                    self.print_playlist_response(response)
+                elif behavior == "archive":
+                    self._archive_playlist_response(playlist_id, response)
+                else:
+                    print(f"Unknown behavior specified: {behavior}")
+                    return
+
+                # Get the next page if possible, otherwise end loop
+                if "nextPageToken" in response:
+                    nextPageToken = response["nextPageToken"]
+                    response = self._get_playlist_page(
+                        playlist_id, 
+                        next_page=nextPageToken
+                    )
+                else:
+                    end_reached = True
+                    continue
+        except HttpError as e:
+            print(f"YouTube API error ({e.status_code}): {e.reason}")
+            raise
 
         return
 
@@ -348,43 +352,46 @@ class Archiver:
         Returns:
             None
         """
-        if n_items < 0:
-            return
-        elif n_items <= 50:
-            response = self._get_playlist_page(playlist_id, n_items=n_items)
-            self.print_playlist_response(response)
-            return
-
-        # Getting more than 50 items
-        end_reached = False
-
-        response = self._get_playlist_page(playlist_id)
-        n_items -= 50
-        while not end_reached:
-            if not response:
-                print("No response received...")
+        try:
+            if n_items < 0:
+                return
+            elif n_items <= 50:
+                response = self._get_playlist_page(playlist_id, n_items=n_items)
+                self.print_playlist_response(response)
                 return
 
-            # Print playlist items for now
-            self.print_playlist_response(response)
-            # Get the next page if possible, otherwise end loop
-            if "nextPageToken" in response and n_items > 0:
-                nextPageToken = response["nextPageToken"]
-                # Get max items (50) at a time while n > 50
-                response = self._get_playlist_page(
-                    self._youtube, 
-                    playlist_id,
-                    n_items=50 if n_items >= 50 else n_items,
-                    next_page=nextPageToken
-                )
-                if n_items >= 50:
-                    n_items -= 50
+            # Getting more than 50 items
+            end_reached = False
+
+            response = self._get_playlist_page(playlist_id)
+            n_items -= 50
+            while not end_reached:
+                if not response:
+                    print("No response received...")
+                    return
+
+                # Print playlist items for now
+                self.print_playlist_response(response)
+                # Get the next page if possible, otherwise end loop
+                if "nextPageToken" in response and n_items > 0:
+                    nextPageToken = response["nextPageToken"]
+                    # Get max items (50) at a time while n > 50
+                    response = self._get_playlist_page(
+                        self._youtube, 
+                        playlist_id,
+                        n_items=50 if n_items >= 50 else n_items,
+                        next_page=nextPageToken
+                    )
+                    if n_items >= 50:
+                        n_items -= 50
+                    else:
+                        n_items = 0
+                        continue
                 else:
-                    n_items = 0
+                    end_reached = True
                     continue
-            else:
-                end_reached = True
-                continue
+        except HttpError as e:
+            print(f"YouTube API error ({e.status_code}): {e.reason}")
 
         return
 
@@ -410,8 +417,8 @@ class Archiver:
                 ids = [line.strip() for line in f]
         except FileNotFoundError as e:
             print(f"Error opening playlist file: {e}")
-        except:
-            print("Something went wrong with the playlist file...")
+        except Exception as e:
+            print(f"Something went wrong with the playlist file: {e}")
 
         return ids
 
@@ -420,7 +427,7 @@ class Archiver:
 
         Reads playlist IDs from the specified file and processes each playlist based
         on how many items to retrieve:
-        - If n_items is None or 0: Archives/prints entire playlist (uses get_entire_playlist)
+        - If n_items is None or 0: Archives entire playlist (uses get_entire_playlist)
         - If n_items is an int: Retrieves exactly n_items items per playlist
         - If n_items is a list: Each element specifies items for corresponding playlist
 
@@ -439,7 +446,7 @@ class Archiver:
         for i, p_id in enumerate(playlist_ids):
             if not n_items:
                 print(f"\nGetting entire playlist with ID {p_id}\n")
-                self.get_entire_playlist(p_id)
+                self.get_entire_playlist(p_id, "archive")
             elif type(n_items) is int:
                 print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
                 self.get_n_playlist_items(p_id, n_items)
@@ -482,8 +489,7 @@ class Archiver:
         try:
             response = request.execute()
         except HttpError as e:
-            print(f"YouTube API error ({e.status_code}): {e.reason}")
-            return None
+            raise HttpError(resp=e)
 
         return response["etag"]
 
@@ -543,8 +549,7 @@ class Archiver:
         try:
             response = request.execute()
         except HttpError as e:
-            print(f"YouTube API error ({e.status_code}): {e.reason}")
-            return None
+            raise HttpError(resp=e)
         
         return response["items"][0]["snippet"]["title"]
 
@@ -564,30 +569,36 @@ class Archiver:
         """
         success = False
 
-        self._cursor.execute('''
-            SELECT * FROM playlist_data WHERE p_id = ?
-        ''', (playlist_id,))
-        result = self._cursor.fetchall()
-
-        if not result:
-            # Archive new playlist
-            self.get_entire_playlist(playlist_id, "archive")
-            playlist_title = self._get_playlist_info(playlist_id)
-            now = datetime.datetime.now()
-            etag = self._get_etag(playlist_id)
+        try:
             self._cursor.execute('''
-                INSERT INTO playlist_data 
-                (p_id, title, created, last_update, etag) 
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (
-                    playlist_id, playlist_title, int(now.timestamp()), 
-                    int(now.timestamp()), etag
+                SELECT * FROM playlist_data WHERE p_id = ?
+            ''', (playlist_id,))
+            result = self._cursor.fetchall()
+
+            if not result:
+                # Archive new playlist
+                self.get_entire_playlist(playlist_id, "archive")
+                playlist_title = self._get_playlist_info(playlist_id)
+                now = datetime.datetime.now()
+                etag = self._get_etag(playlist_id)
+                self._cursor.execute('''
+                    INSERT INTO playlist_data 
+                    (p_id, title, created, last_update, etag) 
+                    VALUES (?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        playlist_id, playlist_title, int(now.timestamp()), 
+                        int(now.timestamp()), etag
+                    )
                 )
-            )
-            self._conn.commit()
-            print("Playlist successfully archived")
-            success = True
+                self._conn.commit()
+                print("Playlist successfully archived")
+                success = True
+        except sqlite3.Error as e:
+            print(f"Archive failed: SQLite3 error: {e}")
+        except HttpError as e:
+            print(f"Archive failed: YouTube API error ({e.status_code}): {e.reason}")
+            return success # Here in case code is placed before final return
 
         return success
 
