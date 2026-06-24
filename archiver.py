@@ -444,23 +444,26 @@ class Archiver:
         playlist_ids = self._get_playlist_ids(path)
             
         for i, p_id in enumerate(playlist_ids):
-            if not n_items:
-                print(f"\nGetting entire playlist with ID {p_id}\n")
-                self.archive_playlist(p_id)
-            elif type(n_items) is int:
-                print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
-                self.get_n_playlist_items(p_id, n_items)
-            elif type(n_items) is list:
-                if len(n_items) != len(playlist_ids):
-                    n = len(n_items)
-                    p = len(playlist_ids)
-                    print(
-                        f"Error: n_list size ({n}) != number of " +
-                        f"playlists ({p}). Returning..."
-                    )
-                    return
-                print(f"\nGetting {n_items[i]} items from playlist with ID {p_id}\n")
-                self.get_n_playlist_items(p_id, n_items[i])
+            try:
+                if not n_items:
+                    print(f"\nGetting entire playlist with ID {p_id}\n")
+                    self.archive_playlist(p_id)
+                elif type(n_items) is int:
+                    print(f"\nGetting {n_items} items from playlist with ID {p_id}\n")
+                    self.get_n_playlist_items(p_id, n_items)
+                elif type(n_items) is list:
+                    if len(n_items) != len(playlist_ids):
+                        n = len(n_items)
+                        p = len(playlist_ids)
+                        print(
+                            f"Error: n_list size ({n}) != number of " +
+                            f"playlists ({p}). Returning..."
+                        )
+                        return
+                    print(f"\nGetting {n_items[i]} items from playlist with ID {p_id}\n")
+                    self.get_n_playlist_items(p_id, n_items[i])
+            except Exception as e:
+                print(f"An error occured: {e}")
 
         return
 
@@ -952,8 +955,12 @@ class Archiver:
             duplicate insert errors.
         """
         # Load playlist data and metadata from the relevant file
-        meta_df = pd.read_csv(file_name + ".meta")
-        playlist_df = pd.read_csv(file_name)
+        try:
+            meta_df = pd.read_csv(file_name + ".meta")
+            playlist_df = pd.read_csv(file_name)
+        except Exception as e:
+            print("Error when reading archive files: {e}")
+            return
 
         # Store playlist metadata
         metadata = tuple(meta_df.values[0])
