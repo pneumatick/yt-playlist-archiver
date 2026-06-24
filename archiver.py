@@ -24,7 +24,6 @@ import pandas as pd
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -217,7 +216,11 @@ class Archiver:
                 pageToken=next_page
             )
 
-        response = request.execute()
+        try:
+            response = request.execute()
+        except HttpError as e:
+            print(f"YouTube API error ({e.status_code}): {e.reason}")
+            return None
 
         return response
 
@@ -475,7 +478,13 @@ class Archiver:
             playlistId=playlist_id,
             maxResults=0
         )
-        response = request.execute()
+
+        try:
+            response = request.execute()
+        except HttpError as e:
+            print(f"YouTube API error ({e.status_code}): {e.reason}")
+            return None
+
         return response["etag"]
 
     def check_playlist_for_changes(self, playlist_id) -> tuple[bool, str]:
@@ -531,7 +540,11 @@ class Archiver:
             part='snippet',
             id=playlist_id
         )
-        response = request.execute()
+        try:
+            response = request.execute()
+        except HttpError as e:
+            print(f"YouTube API error ({e.status_code}): {e.reason}")
+            return None
         
         return response["items"][0]["snippet"]["title"]
 
