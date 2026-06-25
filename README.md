@@ -83,7 +83,7 @@ This token will be reused automatically on future runs, so logging in again will
 Launch GUI (will be the default mode for the majority of users):
 
 ```bash
-./yt-pa.py --gui
+./yt-pa --gui
 ```
 
 ### Command-line interface
@@ -91,19 +91,19 @@ Launch GUI (will be the default mode for the majority of users):
 Retrieve a playlist:
 
 ```bash
-./yt-pa.py --id PLAYLIST_ID
+./yt-pa --id PLAYLIST_ID
 ```
 
 Retrieve the first N items:
 
 ```bash
-./yt-pa.py --id PLAYLIST_ID --number 25
+./yt-pa --id PLAYLIST_ID --number 25
 ```
 
 Archive a playlist locally:
 
 ```bash
-./yt-pa.py --archive PLAYLIST_ID
+./yt-pa --archive PLAYLIST_ID
 ```
 
 List archived playlists:
