@@ -5,3 +5,5 @@ TODO.md
 *.csv*
 *.json
 __*
+dist/
+build/

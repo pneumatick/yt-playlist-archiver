@@ -1,41 +1,64 @@
 # YouTube Playlist Archiver
 
-A command-line Python tool for retrieving, archiving, searching, and exporting YouTube playlist data using the **YouTube Data API v3**.
+A Python tool for retrieving, archiving, searching, and exporting YouTube playlist data using the **YouTube Data API v3**.
 The program stores playlist metadata and video information locally in a **SQLite database**, allowing offline inspection, searching, and change tracking over time.
 
 ---
 
 ## Features
 
+* GUI interface (PySide6) and command-line interface
 * Authenticate with YouTube using **OAuth 2.0**
-* Retrieve full or partial playlist contents
 * Archive playlists locally into a SQLite database
-* Detect playlist updates using ETags
 * Incrementally update playlists when new videos are added
-* Search videos locally (FTS5)
-* Export playlists to CSV (videos + metadata)
-* Import playlists from CSV
-* Delete locally stored playlists
-* Command-line interface for automation and scripting
-* GUI interface (PySide6)
+* Search videos locally (FTS5) both within and across playlists
+* Import and export playlists to share directly with others
+* Detect playlist updates using ETags to conserve API requests and reduce network traffic
 
 ---
 
 ## Requirements
 
-* Python 3.9+
+* Python 3.14.x
+* Poetry
 * Google Cloud project with **YouTube Data API v3** enabled
 * OAuth client credentials file (`client_secret.json`)
 
-Python dependencies:
+## Installation
+
+### Users
+
+Users can install the latest release as a discrete executable [here](https://github.com/pneumatick/yt-playlist-archiver/releases).
+
+To run the program, simply run
 
 ```bash
-pip install google-api-python-client google-auth google-auth-oauthlib pandas
+./yt-dp [FLAG]
 ```
+
+where `[FLAG]` is the flag you choose to run the program with.
+
+### Developers
+
+It is recommended that developers install and use Poetry to manage packages, avoid conflicts between them, and ensure that deprecations do not alter the program's functionality. To install the necessary packages/modules, run
+
+```bash
+poetry install
+```
+
+Then run the program with
+
+```bash
+poetry run ./yt-pa.py [FLAG]
+```
+
+where `[FLAG]` is the flag you choose to run the program with. Otherwise, dependencies must be installed manually.
 
 ---
 
 ## Setup
+
+In order to prevent the need of requiring payment for this program, users must set up their own Google Cloud project in order to manage their own API useage and any fees incurred (unlikely unless many massive playlists are being archived/checked daily). Documentation relating to the steps below can be found [here](https://developers.google.com/workspace/guides/get-started).
 
 1. Create OAuth credentials in the Google Cloud Console.
 2. Download the OAuth client secrets file and rename it:
@@ -51,70 +74,72 @@ client_secret.json
 token.json
 ```
 
-This token will be reused automatically on future runs.
+This token will be reused automatically on future runs, so logging in again will not be necessary until the token expires.
 
 ---
 
 ## Usage
 
+Launch GUI (will be the default mode for the majority of users):
+
+```bash
+./yt-pa.py --gui
+```
+
+### Command-line interface
+
 Retrieve a playlist:
 
 ```bash
-python main.py --id PLAYLIST_ID
+./yt-pa.py --id PLAYLIST_ID
 ```
 
 Retrieve the first N items:
 
 ```bash
-python main.py --id PLAYLIST_ID --number 25
+./yt-pa.py --id PLAYLIST_ID --number 25
 ```
 
 Archive a playlist locally:
 
 ```bash
-python main.py --archive PLAYLIST_ID
+./yt-pa.py --archive PLAYLIST_ID
 ```
 
 List archived playlists:
 
 ```bash
-python main.py --list
+./yt-pa --list
 ```
 
 Open a locally archived playlist:
 
 ```bash
-python main.py --open PLAYLIST_ID
+./yt-pa --open PLAYLIST_ID
 ```
 
 Search for a video:
 
 ```bash
-python main.py --search PLAYLIST_ID "video title"
+./yt-pa --search PLAYLIST_ID "video title"
 ```
 
 Export playlist to CSV:
 
 ```bash
-python main.py --export PLAYLIST_ID
+./yt-pa --export PLAYLIST_ID
 ```
 
 Import playlist from CSV:
 
 ```bash
-python main.py --import PLAYLIST_FILENAME
+./yt-pa --import PLAYLIST_FILENAME
 ```
 
 Delete playlist from local database:
 
 ```bash
-python main.py --delete PLAYLIST_ID
-```
-
-Launch GUI:
-
-```bash
-python main.py --gui
+./yt-pa --delete PLAYLIST_ID
 ```
 
 ---
@@ -130,7 +155,7 @@ playlists.db
 Tables:
 
 * `playlist_data` — playlist metadata
-* `playlist_items` — playlist positions and timestamps
+* `playlist_items` — videos within a given playlist
 * `videos` — video titles and status
 * `videos_fts` - virtual table for video search queries (linked to `videos` table, updated by triggers)
 
@@ -138,8 +163,8 @@ Tables:
 
 ## Notes
 
-* The program supports both public and private playlists (when authenticated with the correct YouTube channel).
+* The program supports both public and private playlists (when authenticated with a YouTube channel that has permission to view them).
 * Playlist updates are detected using **ETag comparison** to avoid unnecessary API requests.
-* Exported playlists can be transferred between machines and imported back into the database.
+* Exported playlists can be transferred between machines and imported back into the database. This is mostly for sharing playlists between users or for data analysis purposes. If transfering or backing up all archived info is desired, simply copy and paste `playlists.db` into the desired location.
 
 ---
